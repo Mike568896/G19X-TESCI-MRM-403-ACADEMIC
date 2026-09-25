@@ -25,20 +25,20 @@ import {
   Search, 
   LogOut, 
   Plus,
-  ChevronRight,
   TrendingUp,
-  Filter
+  FileText,
+  Upload,
+  X
 } from 'lucide-react';
 
 export default function App() {
   // ==========================================
-  // ESTADOS GENERALES Y NAVEGACIÓN
+  // ESTADO GLOBAL DE AUTENTICACIÓN Y SESIÓN
   // ==========================================
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState('inicio');
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [activeTab, setActiveTab] = useState('obligaciones');
 
-  // Datos del usuario (se llenarán al iniciar sesión / registrarse)
-  const [currentUser, setCurrentUser] = useState({
+  const [currentUser] = useState({
     nombre: 'Miguel Romero',
     rol: 'Administrador de Cumplimiento',
     departamento: 'Sistemas y TI',
@@ -46,11 +46,158 @@ export default function App() {
   });
 
   // ==========================================
-  // ESTADOS Y DATOS DE LA PANTALLA DE LOGIN
+  // HELPER: EVALUAR SI UNA FECHA YA VENCIÓ
+  // ==========================================
+  const isDatePast = (dateString) => {
+    if (!dateString) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Normalizar string de fecha AAAA-MM-DD
+    const [year, month, day] = dateString.split('-').map(Number);
+    const inputDate = new Date(year, month - 1, day);
+    
+    return inputDate < today;
+  };
+
+  // ==========================================
+  // ESTADO CENTRALIZADO DE OBLIGACIONES
+  // ==========================================
+  const [obligaciones, setObligaciones] = useState([
+    {
+      id: 1,
+      titulo: 'Entrega de CFDI de nómina',
+      entidad: 'SAT',
+      ley: 'LMISR Art. 99',
+      departamento: 'Finanzas y Contabilidad',
+      vencimiento: '2026-09-23',
+      estado: 'vencida',
+      responsable: 'Carlos Mendoza',
+      evidenciaSubida: false
+    },
+    {
+      id: 2,
+      titulo: 'Dictamen de Seguridad e Higiene',
+      entidad: 'STPS',
+      ley: 'NOM-030-STPS-2009',
+      departamento: 'Recursos Humanos',
+      vencimiento: '2026-09-30',
+      estado: 'proxima',
+      responsable: 'Ana Laura Gómez',
+      evidenciaSubida: false
+    },
+    {
+      id: 3,
+      titulo: 'Declaración mensual de impuestos',
+      entidad: 'SAT',
+      ley: 'Código Fiscal de la Federación',
+      departamento: 'Finanzas y Contabilidad',
+      vencimiento: '2026-09-17',
+      estado: 'completada',
+      responsable: 'Miguel Romero',
+      evidenciaSubida: true
+    },
+    {
+      id: 4,
+      titulo: 'Actualización de Aviso de Privacidad',
+      entidad: 'INAI',
+      ley: 'LFPDPPP Art. 15',
+      departamento: 'Asuntos legales y cumplimiento normativo',
+      vencimiento: '2026-10-15',
+      estado: 'proxima',
+      responsable: 'Diana Romero',
+      evidenciaSubida: false
+    },
+    {
+      id: 5,
+      titulo: 'Reporte de Mantenimiento TI',
+      entidad: 'Interna',
+      ley: 'ISO 27001 A.12',
+      departamento: 'Sistemas y TI',
+      vencimiento: '2026-09-20',
+      estado: 'completada',
+      responsable: 'Miguel Romero',
+      evidenciaSubida: true
+    }
+  ]);
+
+  // CÁLCULO DINÁMICO EN TIEMPO REAL
+  const totalVencidas = obligaciones.filter(o => o.estado === 'vencida').length;
+  const totalProximas = obligaciones.filter(o => o.estado === 'proxima').length;
+  const totalCompletadas = obligaciones.filter(o => o.estado === 'completada').length;
+
+  // ==========================================
+  // LÓGICA DE CONTROL DEL MÓDULO OBLIGACIONES
+  // ==========================================
+  const [filterStatus, setFilterStatus] = useState('todas');
+  const [showNewModal, setShowNewModal] = useState(false);
+
+  const [newObligacion, setNewObligacion] = useState({
+    titulo: '',
+    entidad: 'SAT',
+    ley: '',
+    departamento: 'Asuntos legales y cumplimiento normativo',
+    vencimiento: '',
+    responsable: ''
+  });
+
+  // CREAR OBLIGACIÓN CON DETECCIÓN DE FECHA
+  const handleAddObligacion = (e) => {
+    e.preventDefault();
+    if (!newObligacion.titulo || !newObligacion.vencimiento) return;
+
+    // Verificar si la fecha asignada es pasada
+    const yaVencio = isDatePast(newObligacion.vencimiento);
+
+    const nuevaObj = {
+      id: Date.now(),
+      ...newObligacion,
+      estado: yaVencio ? 'vencida' : 'proxima',
+      evidenciaSubida: false
+    };
+
+    setObligaciones(prev => [nuevaObj, ...prev]);
+    setNewObligacion({
+      titulo: '',
+      entidad: 'SAT',
+      ley: '',
+      departamento: 'Asuntos legales y cumplimiento normativo',
+      vencimiento: '',
+      responsable: ''
+    });
+    setShowNewModal(false);
+  };
+
+  // CAMBIO DE ESTADO INTELIGENTE
+  const handleToggleEstado = (id) => {
+    setObligaciones(prevObligaciones => 
+      prevObligaciones.map(item => {
+        if (item.id === id) {
+          if (item.estado === 'completada') {
+            // Al reabrir / desmarcar auditada, evaluar si por fecha debió/debe estar vencida o próxima
+            const debioVencer = isDatePast(item.vencimiento);
+            const estadoRestaurado = debioVencer ? 'vencida' : 'proxima';
+            return { ...item, estado: estadoRestaurado, evidenciaSubida: false };
+          } else {
+            // Marcar como auditada / completada
+            return { ...item, estado: 'completada', evidenciaSubida: true };
+          }
+        }
+        return item;
+      })
+    );
+  };
+
+  const obligacionesFiltradas = obligaciones.filter(item => {
+    if (filterStatus === 'todas') return true;
+    return item.estado === filterStatus;
+  });
+
+  // ==========================================
+  // ESTADOS LOGIN / REGISTRO
   // ==========================================
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-
   const [loginFormData, setLoginFormData] = useState({
     nombre: '',
     email: '',
@@ -59,98 +206,50 @@ export default function App() {
     codigoInvitacion: ''
   });
 
-  // Carrusel animado del panel izquierdo en Login
-  const liveCards = [
-    {
-      id: 1,
-      titulo: "Entrega de CFDI de nómina",
-      entidad: "SAT · LMISR",
-      estadoText: "2 días de retraso",
-      badgeText: "Vencida",
-      badgeType: "danger",
-      updated: "Hace un momento"
-    },
-    {
-      id: 2,
-      titulo: "Declaración mensual de impuestos",
-      entidad: "SAT · Código Fiscal",
-      estadoText: "Fechado 17 ene",
-      badgeText: "Completada",
-      badgeType: "success",
-      updated: "Hace 2 min"
-    },
-    {
-      id: 3,
-      titulo: "Dictamen de Seguridad e Higiene",
-      entidad: "STPS · NOM-030",
-      estadoText: "Próximo a vencer",
-      badgeText: "En revisión",
-      badgeType: "warning",
-      updated: "Hace 5 min"
-    }
-  ];
+  const handleLoginChange = (e) => {
+    const { name, value } = e.target;
+    setLoginFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) return;
+    if (isAuthenticated || obligaciones.length === 0) return;
     const interval = setInterval(() => {
       setIsTransitioning(true);
       setTimeout(() => {
-        setActiveCardIndex((prev) => (prev + 1) % liveCards.length);
+        setActiveCardIndex((prev) => (prev + 1) % obligaciones.length);
         setIsTransitioning(false);
       }, 300);
     }, 3500);
-
     return () => clearInterval(interval);
-  }, [liveCards.length, isAuthenticated]);
+  }, [obligaciones.length, isAuthenticated]);
 
-  const handleLoginChange = (e) => {
-    const { name, value } = e.target;
-    setLoginFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const currentCard = obligaciones[activeCardIndex % obligaciones.length] || obligaciones[0];
 
   const handleAuthSubmit = (e) => {
     e.preventDefault();
-    if (!isLogin && loginFormData.nombre) {
-      setCurrentUser((prev) => ({
-        ...prev,
-        nombre: loginFormData.nombre,
-        email: loginFormData.email || prev.email,
-        departamento: loginFormData.departamento || prev.departamento
-      }));
-    } else if (loginFormData.email) {
-      setCurrentUser((prev) => ({
-        ...prev,
-        email: loginFormData.email
-      }));
-    }
-    // Entrar al Dashboard
     setIsAuthenticated(true);
   };
 
-  // Ítems del menú lateral del Dashboard
   const navItems = [
     { id: 'inicio', label: 'Inicio / Resumen', icon: LayoutDashboard },
-    { id: 'obligaciones', label: 'Obligaciones', icon: CheckSquare, badge: '3' },
+    { id: 'obligaciones', label: 'Obligaciones', icon: CheckSquare, badge: totalVencidas > 0 ? totalVencidas.toString() : null },
     { id: 'empleados', label: 'Personal / Equipo', icon: Users },
     { id: 'calendario', label: 'Calendario', icon: CalendarIcon },
     { id: 'documentos', label: 'Evidencias y Docs', icon: FolderCheck },
     { id: 'cuenta', label: 'Mi Cuenta', icon: User },
   ];
 
-  const currentCard = liveCards[activeCardIndex];
-
   // ==========================================
-  // VISTA 1: PANTALLA DE ACCESO (LOGIN / REGISTRO)
+  // VISTA 1: LOGIN / REGISTRO
   // ==========================================
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 font-sans">
         <div className="w-full max-w-6xl bg-[#0d1322] border border-slate-800 rounded-2xl shadow-2xl grid grid-cols-1 lg:grid-cols-12 my-auto overflow-hidden">
           
-          {/* PANEL IZQUIERDO: Branding & Tarjetas Animadas */}
           <div className="lg:col-span-6 p-6 lg:p-10 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-800 bg-gradient-to-br from-[#0f172a] via-[#0d1322] to-blue-950/30">
             <div>
               <div className="flex items-center gap-3 mb-6">
@@ -161,18 +260,15 @@ export default function App() {
                   Pluri Uno
                 </span>
               </div>
-
               <p className="text-[11px] font-bold tracking-widest text-blue-400 uppercase mb-2">
                 PLATAFORMA DE SEGUIMIENTO DE OBLIGACIONES LEGALES
               </p>
-
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white leading-tight mb-4">
                 Cada obligación legal, <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-blue-500">
                   cada plazo crítico, bajo control.
                 </span>
               </h1>
-
               <p className="text-xs sm:text-sm text-slate-400 max-w-md leading-relaxed mb-6">
                 Alertas regulatorias inteligentes, calendarios de vencimiento y evidencia de auditoría lista para reguladores — todo en un solo panel para tu equipo.
               </p>
@@ -183,80 +279,48 @@ export default function App() {
                 <div className="flex items-center justify-between text-xs mb-3">
                   <span className="flex items-center gap-2 text-emerald-400 font-medium">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    Monitoreo en Vivo
+                    Monitoreo en Vivo ({obligaciones.length} Registradas)
                   </span>
-                  <span className="text-slate-500 text-[11px]">{currentCard.updated}</span>
+                  <span className="text-slate-500 text-[11px]">Sincronizado</span>
                 </div>
 
                 <div className={`transition-all duration-300 ${isTransitioning ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}`}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-xs sm:text-sm font-semibold text-slate-100">
-                        {currentCard.titulo}
-                      </h4>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        {currentCard.entidad} · {currentCard.estadoText}
-                      </p>
+                      <h4 className="text-xs sm:text-sm font-semibold text-slate-100">{currentCard?.titulo}</h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5" notranslate="true">{currentCard?.entidad} · {currentCard?.ley}</p>
                     </div>
-
-                    {currentCard.badgeType === 'danger' && (
+                    {currentCard?.estado === 'vencida' && (
                       <span className="px-2.5 py-1 text-[10px] font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-full flex items-center gap-1 shrink-0">
-                        <AlertCircle className="w-3 h-3" /> {currentCard.badgeText}
+                        <AlertCircle className="w-3 h-3" /> Vencida
                       </span>
                     )}
-
-                    {currentCard.badgeType === 'success' && (
+                    {currentCard?.estado === 'completada' && (
                       <span className="px-2.5 py-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center gap-1 shrink-0">
-                        <CheckCircle2 className="w-3 h-3" /> {currentCard.badgeText}
+                        <CheckCircle2 className="w-3 h-3" /> Auditada
                       </span>
                     )}
-
-                    {currentCard.badgeType === 'warning' && (
+                    {currentCard?.estado === 'proxima' && (
                       <span className="px-2.5 py-1 text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center gap-1 shrink-0">
-                        <Clock className="w-3 h-3" /> {currentCard.badgeText}
+                        <Clock className="w-3 h-3" /> Pendiente
                       </span>
                     )}
                   </div>
                 </div>
 
                 <div className="flex gap-1.5 mt-3 pt-2 border-t border-slate-800/60 justify-center">
-                  {liveCards.map((_, index) => (
+                  {obligaciones.map((_, index) => (
                     <span
                       key={index}
                       className={`h-1 rounded-full transition-all duration-300 ${
-                        index === activeCardIndex ? 'w-5 bg-blue-500' : 'w-1.5 bg-slate-700'
+                        index === (activeCardIndex % obligaciones.length) ? 'w-5 bg-blue-500' : 'w-1.5 bg-slate-700'
                       }`}
                     />
                   ))}
                 </div>
               </div>
 
-              <div className="pt-1">
-                <div className="flex justify-between items-center text-xs font-semibold mb-1.5">
-                  <span className="text-slate-400 uppercase tracking-wider text-[10px]">Cumplimiento Global</span>
-                  <span className="text-emerald-400">96%</span>
-                </div>
-                <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-gradient-to-r from-blue-500 to-emerald-400 h-1.5 rounded-full w-[96%] transition-all duration-500"></div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 pt-2 text-center border-t border-slate-800">
-                <div>
-                  <span className="text-lg font-bold text-white">12</span>
-                  <p className="text-[9px] uppercase tracking-wider text-slate-500 font-medium">Obligaciones</p>
-                </div>
-                <div>
-                  <span className="text-lg font-bold text-white">3</span>
-                  <p className="text-[9px] uppercase tracking-wider text-slate-500 font-medium">Alertas Activas</p>
-                </div>
-                <div>
-                  <span className="text-lg font-bold text-white">5</span>
-                  <p className="text-[9px] uppercase tracking-wider text-slate-500 font-medium">Áreas Monitoreo</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 text-[10px] sm:text-[11px] text-slate-500 pt-1">
+              <div className="flex items-center gap-3 text-[10px] text-slate-500 pt-1">
                 <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-slate-400" /> Cifrado de extremo a extremo</span>
                 <span>•</span>
                 <span className="flex items-center gap-1"><FileCheck className="w-3.5 h-3.5 text-slate-400" /> Evidencia auditada</span>
@@ -264,14 +328,10 @@ export default function App() {
             </div>
           </div>
 
-          {/* PANEL DERECHO: Formulario de Login / Registro */}
           <div className="lg:col-span-6 p-6 lg:p-10 flex flex-col justify-center bg-[#0b101d]">
             <div className="max-w-md w-full mx-auto">
-              
               <div className="mb-5">
-                <h2 className="text-2xl font-bold text-white mb-1">
-                  {isLogin ? 'Bienvenido de nuevo' : 'Crear una cuenta'}
-                </h2>
+                <h2 className="text-2xl font-bold text-white mb-1">{isLogin ? 'Bienvenido de nuevo' : 'Crear una cuenta'}</h2>
                 <p className="text-xs sm:text-sm text-slate-400">
                   {isLogin 
                     ? 'Ingresa con tu correo institucional para acceder al panel de cumplimiento.' 
@@ -279,15 +339,12 @@ export default function App() {
                 </p>
               </div>
 
-              {/* Switch Pestañas */}
               <div className="flex bg-[#121929] p-1 rounded-xl mb-5 border border-slate-800">
                 <button
                   type="button"
                   onClick={() => setIsLogin(true)}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-200 cursor-pointer ${
-                    isLogin 
-                      ? 'bg-blue-600 text-white shadow-md' 
-                      : 'text-slate-400 hover:text-white'
+                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                    isLogin ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   Iniciar Sesión
@@ -295,10 +352,8 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setIsLogin(false)}
-                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-200 cursor-pointer ${
-                    !isLogin 
-                      ? 'bg-blue-600 text-white shadow-md' 
-                      : 'text-slate-400 hover:text-white'
+                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                    !isLogin ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   Registrarse
@@ -306,8 +361,6 @@ export default function App() {
               </div>
 
               <form onSubmit={handleAuthSubmit} className="space-y-3.5">
-                
-                {/* CAMPO: Nombre Completo (Registro) */}
                 {!isLogin && (
                   <div>
                     <label className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-1">
@@ -315,39 +368,37 @@ export default function App() {
                     </label>
                     <div className="relative">
                       <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
+                      <input 
+                        type="text" 
                         name="nombre"
-                        required
+                        required 
+                        placeholder="Ej. Miguel Romero"
                         value={loginFormData.nombre}
                         onChange={handleLoginChange}
-                        placeholder="Ej. Miguel Romero"
                         className="w-full bg-[#121929] border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                       />
                     </div>
                   </div>
                 )}
 
-                {/* CAMPO: Correo */}
                 <div>
                   <label className="block text-[10px] font-bold tracking-wider text-slate-400 uppercase mb-1">
                     Correo Institucional
                   </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
+                    <input 
+                      type="email" 
                       name="email"
-                      required
+                      required 
+                      placeholder="usuario@plurione.com"
                       value={loginFormData.email}
                       onChange={handleLoginChange}
-                      placeholder="usuario@plurione.com"
                       className="w-full bg-[#121929] border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                     />
                   </div>
                 </div>
 
-                {/* CAMPO: Contraseña */}
                 <div>
                   <div className="flex justify-between items-center mb-1">
                     <label className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
@@ -361,13 +412,13 @@ export default function App() {
                   </div>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
+                    <input 
                       type={showPassword ? 'text' : 'password'}
                       name="password"
-                      required
+                      required 
+                      placeholder="••••••••"
                       value={loginFormData.password}
                       onChange={handleLoginChange}
-                      placeholder="••••••••"
                       className="w-full bg-[#121929] border border-slate-800 rounded-xl pl-10 pr-10 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                     />
                     <button
@@ -380,7 +431,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* CAMPOS EXTRA: Registro */}
                 {!isLogin && (
                   <>
                     <div>
@@ -413,12 +463,12 @@ export default function App() {
                       </label>
                       <div className="relative">
                         <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
+                        <input 
+                          type="text" 
                           name="codigoInvitacion"
+                          placeholder="Ej. PLURI-8930"
                           value={loginFormData.codigoInvitacion}
                           onChange={handleLoginChange}
-                          placeholder="Ej. PLURI-8930"
                           className="w-full bg-[#121929] border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                         />
                       </div>
@@ -430,7 +480,7 @@ export default function App() {
                   type="submit"
                   className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-xl text-xs sm:text-sm shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 mt-2 cursor-pointer transition-colors"
                 >
-                  {isLogin ? 'Ingresar a la Plataforma' : 'Solicitar Registro'}
+                  <span>{isLogin ? 'Ingresar a la Plataforma' : 'Solicitar Registro'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
@@ -458,36 +508,23 @@ export default function App() {
                 <span>Iniciar sesión con Microsoft</span>
                 <span className="bg-slate-800 text-[9px] text-slate-400 px-1.5 py-0.5 rounded ml-1">Ingresar ID</span>
               </button>
-
-              <p className="text-[10px] text-slate-500 text-center mt-4">
-                Al continuar aceptas los{' '}
-                <a href="#terms" className="underline hover:text-slate-400">Términos de servicio</a>{' '}
-                y la{' '}
-                <a href="#privacy" className="underline hover:text-slate-400">Política de privacidad</a>{' '}
-                de PluriOne.
-              </p>
             </div>
           </div>
 
         </div>
-
-        <p className="text-[11px] text-slate-600 text-center mt-3">
-          Desarrollo Talento y Tecnología © 2026 · PluriOne S.A. de C.V.
-        </p>
       </div>
     );
   }
 
   // ==========================================
-  // VISTA 2: DASHBOARD PRINCIPAL (SISTEMA AUTENTICADO)
+  // VISTA 2: DASHBOARD
   // ==========================================
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-100 flex font-sans overflow-hidden">
       
-      {/* 1. BARRA LATERAL (SIDEBAR) */}
+      {/* SIDEBAR */}
       <aside className="w-64 bg-[#0d1322] border-r border-slate-800 flex flex-col justify-between shrink-0 hidden md:flex">
         <div>
-          {/* Logo Brand */}
           <div className="p-6 flex items-center gap-3 border-b border-slate-800/80">
             <div className="bg-blue-600 text-white font-black text-lg px-3 py-1 rounded-xl shadow-lg shadow-blue-600/30">
               P1
@@ -502,7 +539,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Menú de Navegación */}
           <nav className="p-4 space-y-1.5">
             <p className="text-[10px] font-bold tracking-wider text-slate-500 uppercase px-3 mb-2">
               Navegación
@@ -535,12 +571,11 @@ export default function App() {
           </nav>
         </div>
 
-        {/* Perfil Abajo / Logout */}
         <div className="p-4 border-t border-slate-800/80 bg-[#0a0f1b]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs">
-                {currentUser.nombre ? currentUser.nombre.split(' ').map(n => n[0]).join('') : 'U'}
+                MR
               </div>
               <div className="overflow-hidden">
                 <h4 className="text-xs font-semibold text-white truncate">{currentUser.nombre}</h4>
@@ -558,17 +593,17 @@ export default function App() {
         </div>
       </aside>
 
-      {/* 2. ÁREA PRINCIPAL DE CONTENIDO */}
+      {/* ÁREA PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         
-        {/* HEADER SUPERIOR */}
+        {/* HEADER */}
         <header className="h-16 border-b border-slate-800 bg-[#0d1322]/80 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-10">
           <div className="flex items-center gap-4 flex-1 max-w-md">
             <div className="relative w-full">
               <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input 
                 type="text" 
-                placeholder="Buscar obligaciones, leyes, folios o personal..."
+                placeholder="Buscar por ley, título, entidad o responsable..."
                 className="w-full bg-[#121929] border border-slate-800 rounded-xl pl-10 pr-4 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -577,43 +612,40 @@ export default function App() {
           <div className="flex items-center gap-3">
             <button className="relative p-2 rounded-xl bg-[#121929] border border-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer">
               <Bell className="w-4 h-4" />
-              <span className="w-2 h-2 rounded-full bg-blue-500 absolute top-1.5 right-1.5 animate-pulse"></span>
+              {totalVencidas > 0 && (
+                <span className="w-2 h-2 rounded-full bg-rose-500 absolute top-1.5 right-1.5 animate-pulse"></span>
+              )}
             </button>
             
-            <button className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors">
+            <button 
+              onClick={() => setShowNewModal(true)}
+              className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
+            >
               <Plus className="w-4 h-4" />
               <span>Nueva Obligación</span>
             </button>
           </div>
         </header>
 
-        {/* CONTENIDO DE LA PESTAÑA SELECCIONADA */}
+        {/* MAIN CONTENT */}
         <main className="p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
           
-          {/* SI LA PESTAÑA ES INICIO */}
+          {/* PESTAÑA INICIO */}
           {activeTab === 'inicio' && (
             <>
-              {/* BANNER DE BIENVENIDA */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-900/20 via-[#0d1322] to-[#0d1322] p-6 rounded-2xl border border-slate-800">
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">
+                  <h1 className="text-xl font-bold text-white mb-1">
                     ¡Bienvenido de nuevo, {currentUser.nombre.split(' ')[0]}! 👋
                   </h1>
-                  <p className="text-xs sm:text-sm text-slate-400">
-                    Aquí tienes el resumen operativo de hoy. Tienes <span className="text-rose-400 font-semibold">1 obligación vencida</span> que requiere atención inmediata.
+                  <p className="text-xs text-slate-400">
+                    Resumen general: Tienes <span className="text-rose-400 font-semibold">{totalVencidas} obligación(es) vencida(s)</span> y <span className="text-amber-400 font-semibold">{totalProximas} pendiente(s)</span>.
                   </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button className="bg-[#121929] hover:bg-slate-800 text-slate-300 border border-slate-800 text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-2 transition-colors cursor-pointer">
-                    <Filter className="w-3.5 h-3.5" />
-                    <span>Filtrar Vista</span>
-                  </button>
                 </div>
               </div>
 
-              {/* TARJETAS DE KPIS */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all">
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Próximas y Pendientes</span>
                     <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -621,15 +653,12 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-extrabold text-white">8</span>
-                    <span className="text-xs text-slate-400">para este mes</span>
+                    <span className="text-3xl font-extrabold text-white">{totalProximas}</span>
+                    <span className="text-xs text-slate-400">en seguimiento</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-2 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3 text-emerald-400" /> +2 asignadas esta semana
-                  </p>
                 </div>
 
-                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all">
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Atención Requerida</span>
                     <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
@@ -637,130 +666,281 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-extrabold text-rose-400">1</span>
-                    <span className="text-xs text-slate-400">obligación vencida</span>
+                    <span className="text-3xl font-extrabold text-rose-400">{totalVencidas}</span>
+                    <span className="text-xs text-slate-400">vencida(s)</span>
                   </div>
-                  <p className="text-[11px] text-rose-400/80 mt-2">
-                    Entrega CFDI Nómina (Retraso 2 días)
-                  </p>
                 </div>
 
-                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-all">
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Completadas con Éxito</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Completadas</span>
                     <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                       <CheckCircle2 className="w-4 h-4" />
                     </div>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-extrabold text-white">24</span>
+                    <span className="text-3xl font-extrabold text-white">{totalCompletadas}</span>
                     <span className="text-xs text-slate-400">con evidencia auditada</span>
-                  </div>
-                  <p className="text-[11px] text-emerald-400 mt-2">
-                    96% de efectividad de cumplimiento
-                  </p>
-                </div>
-              </div>
-
-              {/* OBLIGACIONES RECIENTES */}
-              <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-base font-bold text-white">Obligaciones Prioritarias</h3>
-                    <p className="text-xs text-slate-400">Seguimiento en tiempo real de requerimientos corporativos</p>
-                  </div>
-                  <button className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 transition-colors cursor-pointer">
-                    <span>Ver todas</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="bg-[#121929] border border-slate-800 hover:border-slate-700 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg mt-0.5">
-                        <AlertCircle className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs sm:text-sm font-semibold text-white">Entrega de CFDI de nómina</h4>
-                        <p className="text-[11px] text-slate-400 mt-0.5">SAT · LMISR · Asignado a: <span className="text-slate-300">Finanzas</span></p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 justify-between md:justify-end">
-                      <span className="px-2.5 py-1 text-[10px] font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-full">
-                        2 días de retraso
-                      </span>
-                      <button className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer">
-                        Subir Evidencia
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#121929] border border-slate-800 hover:border-slate-700 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg mt-0.5">
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs sm:text-sm font-semibold text-white">Dictamen de Seguridad e Higiene</h4>
-                        <p className="text-[11px] text-slate-400 mt-0.5">STPS · NOM-030 · Asignado a: <span className="text-slate-300">Recursos Humanos</span></p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 justify-between md:justify-end">
-                      <span className="px-2.5 py-1 text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full">
-                        Vence en 5 días
-                      </span>
-                      <button className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer">
-                        Revisar Status
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#121929] border border-slate-800 hover:border-slate-700 p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg mt-0.5">
-                        <CheckCircle2 className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs sm:text-sm font-semibold text-white">Declaración mensual de impuestos</h4>
-                        <p className="text-[11px] text-slate-400 mt-0.5">SAT · Código Fiscal · Asignado a: <span className="text-slate-300">Contabilidad</span></p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 justify-between md:justify-end">
-                      <span className="px-2.5 py-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                        Completada
-                      </span>
-                      <button className="text-xs bg-slate-800/50 text-slate-500 px-3 py-1.5 rounded-lg font-medium cursor-not-allowed">
-                        Ver Folio
-                      </button>
-                    </div>
                   </div>
                 </div>
               </div>
             </>
           )}
 
-          {/* PLACEHOLDER PARA LAS DEMÁS PESTAÑAS */}
-          {activeTab !== 'inicio' && (
-            <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-12 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mx-auto mb-4">
-                <LayoutDashboard className="w-6 h-6" />
+          {/* PESTAÑA OBLIGACIONES */}
+          {activeTab === 'obligaciones' && (
+            <>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0d1322] p-6 rounded-2xl border border-slate-800">
+                <div>
+                  <h1 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                    <CheckSquare className="w-5 h-5 text-blue-400" />
+                    Gestión de Obligaciones Legales-Regulatorias
+                  </h1>
+                  <p className="text-xs text-slate-400">
+                    Control centralizado de requerimientos corporativos.
+                  </p>
+                </div>
+
+                <div className="flex bg-[#121929] p-1 rounded-xl border border-slate-800 self-start md:self-auto">
+                  <button
+                    onClick={() => setFilterStatus('todas')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      filterStatus === 'todas' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Todas ( {obligaciones.length} )
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus('vencida')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      filterStatus === 'vencida' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:text-rose-400'
+                    }`}
+                  >
+                    Vencidas ( {totalVencidas} )
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus('proxima')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      filterStatus === 'proxima' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-amber-400'
+                    }`}
+                  >
+                    Próximas ( {totalProximas} )
+                  </button>
+                  <button
+                    onClick={() => setFilterStatus('completada')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                      filterStatus === 'completada' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-emerald-400'
+                    }`}
+                  >
+                    Completadas ( {totalCompletadas} )
+                  </button>
+                </div>
               </div>
+
+              {/* TABLA PRINCIPAL */}
+              <div className="bg-[#0d1322] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-[#121929] text-slate-400 uppercase font-bold text-[10px] tracking-wider">
+                        <th className="p-4">Obligación / Marco Legal</th>
+                        <th className="p-4">Entidad</th>
+                        <th className="p-4">Área / Responsable</th>
+                        <th className="p-4">Fecha Vencimiento</th>
+                        <th className="p-4">Estado</th>
+                        <th className="p-4 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {obligacionesFiltradas.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="p-8 text-center text-slate-500">
+                            No hay obligaciones registradas en esta categoría.
+                          </td>
+                        </tr>
+                      ) : (
+                        obligacionesFiltradas.map((item) => (
+                          <tr key={item.id} className="hover:bg-[#131b2e]/50 transition-colors">
+                            <td className="p-4">
+                              <div className="font-bold text-white text-xs sm:text-sm">{item.titulo}</div>
+                              <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                <FileText className="w-3 h-3 text-slate-500" />
+                                {item.ley}
+                              </div>
+                            </td>
+
+                            <td className="p-4">
+                              <span className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 font-semibold text-slate-300 text-[10px]" notranslate="true">
+                                {item.entidad}
+                              </span>
+                            </td>
+
+                            <td className="p-4">
+                              <div className="text-slate-200 font-medium">{item.departamento}</div>
+                              <div className="text-[10px] text-slate-500">{item.responsable}</div>
+                            </td>
+
+                            <td className="p-4">
+                              <div className="flex items-center gap-1.5 text-slate-300 font-mono">
+                                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                                {item.vencimiento}
+                              </div>
+                            </td>
+
+                            <td className="p-4">
+                              {item.estado === 'vencida' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20">
+                                  <AlertCircle className="w-3 h-3" /> Vencida
+                                </span>
+                              )}
+                              {item.estado === 'proxima' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20">
+                                  <Clock className="w-3 h-3" /> Pendiente
+                                </span>
+                              )}
+                              {item.estado === 'completada' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                                  <CheckCircle2 className="w-3 h-3" /> Auditada
+                                </span>
+                              )}
+                            </td>
+
+                            <td className="p-4 text-right">
+                              <button 
+                                onClick={() => handleToggleEstado(item.id)}
+                                className={`px-3 py-1.5 rounded-xl font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer ml-auto ${
+                                  item.estado === 'completada'
+                                    ? 'bg-slate-800 text-slate-400 hover:text-white'
+                                    : 'bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600 hover:text-white'
+                                }`}
+                              >
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>{item.estado === 'completada' ? 'Revisar' : 'Marcar Auditada'}</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* OTROS MÓDULOS */}
+          {activeTab !== 'inicio' && activeTab !== 'obligaciones' && (
+            <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-12 text-center">
               <h3 className="text-lg font-bold text-white capitalize mb-1">Módulo: {activeTab}</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto mb-6">
-                Este módulo está listo para recibir componentes dinámicos y conectarse con la base de datos.
-              </p>
-              <button 
-                onClick={() => setActiveTab('inicio')}
-                className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors cursor-pointer"
-              >
-                Volver al Inicio
-              </button>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto mb-6">Módulo en construcción para el siguiente paso.</p>
+              <button onClick={() => setActiveTab('obligaciones')} className="bg-blue-600 text-white text-xs font-semibold px-4 py-2 rounded-xl">Ir a Obligaciones</button>
             </div>
           )}
 
         </main>
       </div>
+
+      {/* MODAL: NUEVA OBLIGACIÓN */}
+      {showNewModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0d1322] border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <button 
+              onClick={() => setShowNewModal(false)}
+              className="absolute right-4 top-4 text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="mb-5">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Plus className="w-5 h-5 text-blue-400" />
+                Registrar Nueva Obligación Legal
+              </h3>
+              <p className="text-xs text-slate-400">Ingresa los datos requeridos para iniciar el monitoreo.</p>
+            </div>
+
+            <form onSubmit={handleAddObligacion} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Título de la Obligación</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="Ej. Reporte Mensual de Finanzas"
+                  value={newObligacion.titulo}
+                  onChange={(e) => setNewObligacion({ ...newObligacion, titulo: e.target.value })}
+                  className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Entidad Regulatoria</label>
+                  <select 
+                    value={newObligacion.entidad}
+                    onChange={(e) => setNewObligacion({ ...newObligacion, entidad: e.target.value })}
+                    className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                  >
+                    <option value="SAT">SAT</option>
+                    <option value="STPS">STPS</option>
+                    <option value="INAI">INAI</option>
+                    <option value="PROFECO">PROFECO</option>
+                    <option value="Interna">Auditoría Interna</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Fecha Vencimiento</label>
+                  <input 
+                    type="date"
+                    required
+                    value={newObligacion.vencimiento}
+                    onChange={(e) => setNewObligacion({ ...newObligacion, vencimiento: e.target.value })}
+                    className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Fundamento Legal / Ley</label>
+                <input 
+                  type="text"
+                  placeholder="Ej. Ley del ISR Art. 76"
+                  value={newObligacion.ley}
+                  onChange={(e) => setNewObligacion({ ...newObligacion, ley: e.target.value })}
+                  className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Responsable Asignado</label>
+                <input 
+                  type="text"
+                  placeholder="Ej. Miguel Romero"
+                  value={newObligacion.responsable}
+                  onChange={(e) => setNewObligacion({ ...newObligacion, responsable: e.target.value })}
+                  className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+                <button 
+                  type="button"
+                  onClick={() => setShowNewModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2 rounded-xl text-xs shadow-lg shadow-blue-600/25 cursor-pointer"
+                >
+                  Guardar Obligación
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );
