@@ -25,10 +25,13 @@ import {
   Search, 
   LogOut, 
   Plus,
-  TrendingUp,
   FileText,
   Upload,
-  X
+  X,
+  UserPlus,
+  Shield,
+  MoreVertical,
+  Briefcase
 } from 'lucide-react';
 
 export default function App() {
@@ -36,7 +39,7 @@ export default function App() {
   // ESTADO GLOBAL DE AUTENTICACIÓN Y SESIÓN
   // ==========================================
   const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [activeTab, setActiveTab] = useState('obligaciones');
+  const [activeTab, setActiveTab] = useState('empleados'); // Iniciar en empleados para desarrollo
 
   const [currentUser] = useState({
     nombre: 'Miguel Romero',
@@ -52,11 +55,8 @@ export default function App() {
     if (!dateString) return false;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    // Normalizar string de fecha AAAA-MM-DD
     const [year, month, day] = dateString.split('-').map(Number);
     const inputDate = new Date(year, month - 1, day);
-    
     return inputDate < today;
   };
 
@@ -121,10 +121,87 @@ export default function App() {
     }
   ]);
 
-  // CÁLCULO DINÁMICO EN TIEMPO REAL
   const totalVencidas = obligaciones.filter(o => o.estado === 'vencida').length;
   const totalProximas = obligaciones.filter(o => o.estado === 'proxima').length;
   const totalCompletadas = obligaciones.filter(o => o.estado === 'completada').length;
+
+  // ==========================================
+  // ESTADO Y LÓGICA DEL MÓDULO DE PERSONAL
+  // ==========================================
+  const [personal, setPersonal] = useState([
+    {
+      id: 1,
+      nombre: 'Miguel Romero',
+      email: 'm.romero@plurione.com',
+      departamento: 'Sistemas y TI',
+      rol: 'Administrador',
+      estado: 'Activo',
+      obligacionesAsignadas: 2
+    },
+    {
+      id: 2,
+      nombre: 'Carlos Mendoza',
+      email: 'c.mendoza@plurione.com',
+      departamento: 'Finanzas y Contabilidad',
+      rol: 'Auditor Compliance',
+      estado: 'Activo',
+      obligacionesAsignadas: 1
+    },
+    {
+      id: 3,
+      nombre: 'Ana Laura Gómez',
+      email: 'a.gomez@plurione.com',
+      departamento: 'Recursos Humanos',
+      rol: 'Responsable de Área',
+      estado: 'Activo',
+      obligacionesAsignadas: 1
+    },
+    {
+      id: 4,
+      nombre: 'Diana Romero',
+      email: 'd.romero@plurione.com',
+      departamento: 'Asuntos legales y cumplimiento normativo',
+      rol: 'Oficial de Cumplimiento',
+      estado: 'Activo',
+      obligacionesAsignadas: 1
+    }
+  ]);
+
+  const [filterDepto, setFilterDepto] = useState('Todos');
+  const [showNewUserModal, setShowNewUserModal] = useState(false);
+
+  const [newUser, setNewUser] = useState({
+    nombre: '',
+    email: '',
+    departamento: 'Asuntos legales y cumplimiento normativo',
+    rol: 'Responsable de Área'
+  });
+
+  const handleAddUser = (e) => {
+    e.preventDefault();
+    if (!newUser.nombre || !newUser.email) return;
+
+    const nuevoColaborador = {
+      id: Date.now(),
+      ...newUser,
+      estado: 'Activo',
+      obligacionesAsignadas: 0
+    };
+
+    setPersonal([nuevoColaborador, ...personal]);
+    setNewUser({
+      nombre: '',
+      email: '',
+      departamento: 'Asuntos legales y cumplimiento normativo',
+      rol: 'Responsable de Área'
+    });
+    setShowNewUserModal(false);
+  };
+
+  const personalFiltrado = personal.filter(p => {
+    if (filterDepto === 'Todos') return true;
+    return p.departamento === filterDepto;
+  });
 
   // ==========================================
   // LÓGICA DE CONTROL DEL MÓDULO OBLIGACIONES
@@ -141,12 +218,10 @@ export default function App() {
     responsable: ''
   });
 
-  // CREAR OBLIGACIÓN CON DETECCIÓN DE FECHA
   const handleAddObligacion = (e) => {
     e.preventDefault();
     if (!newObligacion.titulo || !newObligacion.vencimiento) return;
 
-    // Verificar si la fecha asignada es pasada
     const yaVencio = isDatePast(newObligacion.vencimiento);
 
     const nuevaObj = {
@@ -168,18 +243,15 @@ export default function App() {
     setShowNewModal(false);
   };
 
-  // CAMBIO DE ESTADO INTELIGENTE
   const handleToggleEstado = (id) => {
     setObligaciones(prevObligaciones => 
       prevObligaciones.map(item => {
         if (item.id === id) {
           if (item.estado === 'completada') {
-            // Al reabrir / desmarcar auditada, evaluar si por fecha debió/debe estar vencida o próxima
             const debioVencer = isDatePast(item.vencimiento);
             const estadoRestaurado = debioVencer ? 'vencida' : 'proxima';
             return { ...item, estado: estadoRestaurado, evidenciaSubida: false };
           } else {
-            // Marcar como auditada / completada
             return { ...item, estado: 'completada', evidenciaSubida: true };
           }
         }
@@ -603,7 +675,7 @@ export default function App() {
               <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input 
                 type="text" 
-                placeholder="Buscar por ley, título, entidad o responsable..."
+                placeholder="Buscar colaboradores, correos, roles o áreas..."
                 className="w-full bg-[#121929] border border-slate-800 rounded-xl pl-10 pr-4 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -616,20 +688,176 @@ export default function App() {
                 <span className="w-2 h-2 rounded-full bg-rose-500 absolute top-1.5 right-1.5 animate-pulse"></span>
               )}
             </button>
-            
-            <button 
-              onClick={() => setShowNewModal(true)}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nueva Obligación</span>
-            </button>
+
+            {activeTab === 'empleados' ? (
+              <button 
+                onClick={() => setShowNewUserModal(true)}
+                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Agregar Colaborador</span>
+              </button>
+            ) : (
+              <button 
+                onClick={() => setShowNewModal(true)}
+                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nueva Obligación</span>
+              </button>
+            )}
           </div>
         </header>
 
         {/* MAIN CONTENT */}
         <main className="p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
           
+          {/* PESTAÑA: PERSONAL / EQUIPO */}
+          {activeTab === 'empleados' && (
+            <>
+              {/* Header del Módulo */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0d1322] p-6 rounded-2xl border border-slate-800">
+                <div>
+                  <h1 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-blue-400" />
+                    Gestión de Personal y Control de Accesos
+                  </h1>
+                  <p className="text-xs text-slate-400">
+                    Directorio del equipo, asignación de departamentos y permisos de auditoría.
+                  </p>
+                </div>
+
+                {/* Filtro por Departamento */}
+                <div className="flex bg-[#121929] p-1 rounded-xl border border-slate-800 self-start md:self-auto overflow-x-auto max-w-full">
+                  {['Todos', 'Sistemas y TI', 'Finanzas y Contabilidad', 'Recursos Humanos', 'Asuntos legales y cumplimiento normativo'].map((dept) => (
+                    <button
+                      key={dept}
+                      onClick={() => setFilterDepto(dept)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                        filterDepto === dept ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {dept === 'Asuntos legales y cumplimiento normativo' ? 'Legal' : dept}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* KPIS DE PERSONAL */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Integrantes</span>
+                    <Users className="w-4 h-4 text-blue-400" />
+                  </div>
+                  <span className="text-3xl font-extrabold text-white">{personal.length}</span>
+                  <p className="text-[10px] text-slate-500 mt-1">Colaboradores con acceso activo</p>
+                </div>
+
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Áreas Monitoreadas</span>
+                    <Briefcase className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <span className="text-3xl font-extrabold text-emerald-400">4</span>
+                  <p className="text-[10px] text-slate-500 mt-1">Departamentos clave</p>
+                </div>
+
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Permisos Administrador</span>
+                    <Shield className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <span className="text-3xl font-extrabold text-white">
+                    {personal.filter(p => p.rol === 'Administrador').length}
+                  </span>
+                  <p className="text-[10px] text-slate-500 mt-1">Gestión completa de sistema</p>
+                </div>
+              </div>
+
+              {/* TABLA DE PERSONAL */}
+              <div className="bg-[#0d1322] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-[#121929] text-slate-400 uppercase font-bold text-[10px] tracking-wider">
+                        <th className="p-4">Colaborador</th>
+                        <th className="p-4">Departamento / Área</th>
+                        <th className="p-4">Rol en Plataforma</th>
+                        <th className="p-4">Carga de Trabajo</th>
+                        <th className="p-4">Estado</th>
+                        <th className="p-4 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {personalFiltrado.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="p-8 text-center text-slate-500">
+                            No hay colaboradores registrados en esta área.
+                          </td>
+                        </tr>
+                      ) : (
+                        personalFiltrado.map((item) => (
+                          <tr key={item.id} className="hover:bg-[#131b2e]/50 transition-colors">
+                            
+                            {/* Nombre y Correo */}
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs shrink-0">
+                                  {item.nombre.split(' ').map(n => n[0]).join('')}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-white text-xs sm:text-sm">{item.nombre}</div>
+                                  <div className="text-[11px] text-slate-400">{item.email}</div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Departamento */}
+                            <td className="p-4 text-slate-300 font-medium">
+                              {item.departamento}
+                            </td>
+
+                            {/* Rol */}
+                            <td className="p-4">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-[10px] font-semibold">
+                                <Shield className="w-3 h-3 text-blue-400" />
+                                {item.rol}
+                              </span>
+                            </td>
+
+                            {/* Carga (Obligaciones) */}
+                            <td className="p-4">
+                              <span className="text-slate-300 font-mono font-semibold">
+                                {item.obligacionesAsignadas} asignación(es)
+                              </span>
+                            </td>
+
+                            {/* Estado */}
+                            <td className="p-4">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                {item.estado}
+                              </span>
+                            </td>
+
+                            {/* Acciones */}
+                            <td className="p-4 text-right">
+                              <button className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer ml-auto">
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                            </td>
+
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* PESTAÑA INICIO */}
           {activeTab === 'inicio' && (
             <>
@@ -737,7 +965,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* TABLA PRINCIPAL */}
+              {/* TABLA PRINCIPAL DE OBLIGACIONES */}
               <div className="bg-[#0d1322] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
@@ -828,8 +1056,8 @@ export default function App() {
             </>
           )}
 
-          {/* OTROS MÓDULOS */}
-          {activeTab !== 'inicio' && activeTab !== 'obligaciones' && (
+          {/* MÓDULOS EN CONSTRUCCIÓN */}
+          {activeTab !== 'inicio' && activeTab !== 'obligaciones' && activeTab !== 'empleados' && (
             <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-12 text-center">
               <h3 className="text-lg font-bold text-white capitalize mb-1">Módulo: {activeTab}</h3>
               <p className="text-xs text-slate-400 max-w-sm mx-auto mb-6">Módulo en construcción para el siguiente paso.</p>
@@ -840,13 +1068,107 @@ export default function App() {
         </main>
       </div>
 
+      {/* MODAL: REGISTRAR NUEVO COLABORADOR */}
+      {showNewUserModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0d1322] border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <button 
+              onClick={() => setShowNewUserModal(false)}
+              className="absolute right-4 top-4 text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="mb-5">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-blue-400" />
+                Agregar Colaborador al Equipo
+              </h3>
+              <p className="text-xs text-slate-400">Asigna accesos y departamento para seguimiento de obligaciones.</p>
+            </div>
+
+            <form onSubmit={handleAddUser} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nombre Completo</label>
+                <input 
+                  type="text"
+                  required
+                  placeholder="Ej. Sofía Hernández"
+                  value={newUser.nombre}
+                  onChange={(e) => setNewUser({ ...newUser, nombre: e.target.value })}
+                  className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Correo Institucional</label>
+                <input 
+                  type="email"
+                  required
+                  placeholder="s.hernandez@plurione.com"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Departamento</label>
+                  <select 
+                    value={newUser.departamento}
+                    onChange={(e) => setNewUser({ ...newUser, departamento: e.target.value })}
+                    className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value="Asuntos legales y cumplimiento normativo">Asuntos legales</option>
+                    <option value="Finanzas y Contabilidad">Finanzas</option>
+                    <option value="Recursos Humanos">Recursos Humanos</option>
+                    <option value="Sistemas y TI">Sistemas y TI</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Rol / Permisos</label>
+                  <select 
+                    value={newUser.rol}
+                    onChange={(e) => setNewUser({ ...newUser, rol: e.target.value })}
+                    className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value="Responsable de Área">Responsable de Área</option>
+                    <option value="Auditor Compliance">Auditor Compliance</option>
+                    <option value="Oficial de Cumplimiento">Oficial de Cumplimiento</option>
+                    <option value="Administrador">Administrador</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+                <button 
+                  type="button"
+                  onClick={() => setShowNewUserModal(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2 rounded-xl text-xs shadow-lg shadow-blue-600/25 cursor-pointer"
+                >
+                  Guardar Colaborador
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODAL: NUEVA OBLIGACIÓN */}
       {showNewModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#0d1322] border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
             <button 
               onClick={() => setShowNewModal(false)}
-              className="absolute right-4 top-4 text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+              className="absolute right-4 top-4 text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -878,7 +1200,7 @@ export default function App() {
                   <select 
                     value={newObligacion.entidad}
                     onChange={(e) => setNewObligacion({ ...newObligacion, entidad: e.target.value })}
-                    className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                    className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer"
                   >
                     <option value="SAT">SAT</option>
                     <option value="STPS">STPS</option>
