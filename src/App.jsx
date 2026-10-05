@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   // Iconos para Login / Registro
   Mail, 
@@ -33,7 +33,15 @@ import {
   MoreVertical,
   Briefcase,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Download,
+  File,
+  ExternalLink,
+  Award,
+  TrendingUp,
+  Save,
+  Key,
+  Smartphone
 } from 'lucide-react';
 
 export default function App() {
@@ -41,14 +49,34 @@ export default function App() {
   // ESTADO GLOBAL DE AUTENTICACIÓN Y SESIÓN
   // ==========================================
   const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [activeTab, setActiveTab] = useState('calendario'); // Enfoque en Calendario para pruebas
+  const [activeTab, setActiveTab] = useState('inicio');
 
-  const [currentUser] = useState({
-    nombre: 'Miguel Romero',
+  const [currentUser, setCurrentUser] = useState({
+    nombre: 'Miguel Romero Morales',
     rol: 'Administrador de Cumplimiento',
     departamento: 'Sistemas y TI',
-    email: 'm.romero@plurione.com'
+    email: 'm.romero@plurione.com',
+    telefono: '+52 55 1234 5678',
+    notifEmail: true,
+    notifUrgentes: true,
+    notifResumenSemanal: false
   });
+
+  // ==========================================
+  // BUSCADOR GLOBAL EN VIVO
+  // ==========================================
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // ==========================================
+  // NOTIFICACIONES EN VIVO
+  // ==========================================
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notificaciones, setNotificaciones] = useState([
+    { id: 1, titulo: 'CFDI de Nómina Vencido', tiempo: 'Hace 10 min', tipo: 'urgente' },
+    { id: 2, titulo: 'Nueva evidencia cargada por Ana Gómez', tiempo: 'Hace 1 hora', tipo: 'exito' },
+    { id: 3, titulo: 'Próximo vencimiento: NOM-030 STPS', tiempo: 'Hace 3 horas', tipo: 'alerta' }
+  ]);
 
   // ==========================================
   // HELPER: EVALUAR SI UNA FECHA YA VENCIÓ
@@ -128,33 +156,163 @@ export default function App() {
   const totalCompletadas = obligaciones.filter(o => o.estado === 'completada').length;
 
   // ==========================================
-  // ESTADO Y LÓGICA DEL CALENDARIO
+  // NAVEGACIÓN Y LÓGICA DINÁMICA DEL CALENDARIO (FIX)
   // ==========================================
+  const [currentDate, setCurrentDate] = useState(new Date(2026, 8, 1)); // Septiembre 2026
   const [selectedDate, setSelectedDate] = useState('2026-09-23');
 
-  // Días del mes de Septiembre 2026
-  const currentMonthYear = 'Septiembre 2026';
-  const daysInMonth = Array.from({ length: 30 }, (_, i) => {
+  const nombresMeses = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  const handlePrevMonth = () => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const currentYear = currentDate.getFullYear();
+  const currentMonthIndex = currentDate.getMonth();
+  const daysInMonthCount = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
+
+  const daysInMonth = Array.from({ length: daysInMonthCount }, (_, i) => {
     const dayNum = i + 1;
+    const formattedMonth = currentMonthIndex + 1 < 10 ? `0${currentMonthIndex + 1}` : `${currentMonthIndex + 1}`;
     const formattedDay = dayNum < 10 ? `0${dayNum}` : `${dayNum}`;
-    return `2026-09-${formattedDay}`;
+    return `${currentYear}-${formattedMonth}-${formattedDay}`;
   });
 
-  // Tareas para el día seleccionado en el calendario
   const tareasDelDiaSeleccionado = obligaciones.filter(o => o.vencimiento === selectedDate);
+
+  // ==========================================
+  // ESTADO Y LÓGICA DE EVIDENCIAS / DOCS
+  // ==========================================
+  const [documentos, setDocumentos] = useState([
+    {
+      id: 1,
+      nombreArchivo: 'Acuse_Declaracion_Mensual_Sep2026.pdf',
+      tipo: 'PDF',
+      tamaño: '2.4 MB',
+      obligacionAsociada: 'Declaración mensual de impuestos',
+      entidad: 'SAT',
+      subidoPor: 'Miguel Romero',
+      fechaCarga: '2026-09-17'
+    },
+    {
+      id: 2,
+      nombreArchivo: 'Dictamen_NOM030_Revision_Anual.pdf',
+      tipo: 'PDF',
+      tamaño: '5.1 MB',
+      obligacionAsociada: 'Dictamen de Seguridad e Higiene',
+      entidad: 'STPS',
+      subidoPor: 'Ana Laura Gómez',
+      fechaCarga: '2026-09-12'
+    },
+    {
+      id: 3,
+      nombreArchivo: 'CFDI_Nomina_Quincenal_Sep.xml',
+      tipo: 'XML',
+      tamaño: '840 KB',
+      obligacionAsociada: 'Entrega de CFDI de nómina',
+      entidad: 'SAT',
+      subidoPor: 'Carlos Mendoza',
+      fechaCarga: '2026-09-10'
+    }
+  ]);
+
+  const [filterTipoDoc, setFilterTipoDoc] = useState('Todos');
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewDoc, setPreviewDoc] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const [newDoc, setNewDoc] = useState({
+    obligacionAsociada: 'Declaración mensual de impuestos'
+  });
+
+  const handleFileSelect = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleUploadDoc = (e) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+
+    const extension = selectedFile.name.split('.').pop().toUpperCase();
+    const obligacionEncontrada = obligaciones.find(o => o.titulo === newDoc.obligacionAsociada);
+
+    const nuevoDocumento = {
+      id: Date.now(),
+      nombreArchivo: selectedFile.name,
+      tipo: extension || 'DOCUMENTO',
+      tamaño: `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`,
+      obligacionAsociada: newDoc.obligacionAsociada,
+      entidad: obligacionEncontrada ? obligacionEncontrada.entidad : 'SAT',
+      subidoPor: currentUser.nombre,
+      fechaCarga: new Date().toISOString().split('T')[0]
+    };
+
+    setDocumentos([nuevoDocumento, ...documentos]);
+    
+    if (obligacionEncontrada) {
+      setObligaciones(prev => prev.map(o => {
+        if (o.id === obligacionEncontrada.id) {
+          return { ...o, estado: 'completada', evidenciaSubida: true };
+        }
+        return o;
+      }));
+    }
+
+    setSelectedFile(null);
+    setShowUploadModal(false);
+  };
+
+  const downloadDummyFile = (doc) => {
+    const content = `PLURIONE LEGALTECH & COMPLIANCE
+======================================
+EVIDENCIA DE AUDITORÍA REGISTRADA
+======================================
+Nombre del Archivo: ${doc.nombreArchivo}
+Obligación: ${doc.obligacionAsociada}
+Entidad Regulatoria: ${doc.entidad}
+Subido Por: ${doc.subidoPor}
+Fecha de Carga: ${doc.fechaCarga}
+Estado de Validación: VERIFICADO Y CIFRADO
+======================================`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = doc.nombreArchivo.replace(/\.[^/.]+$/, "") + "_evidencia.txt";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const documentosFiltrados = documentos.filter(doc => {
+    if (filterTipoDoc === 'Todos') return true;
+    return doc.tipo === filterTipoDoc;
+  });
 
   // ==========================================
   // ESTADO Y LÓGICA DE PERSONAL
   // ==========================================
-  const [personal, setPersonal] = useState([
+  const [personal] = useState([
     {
       id: 1,
       nombre: 'Miguel Romero',
       email: 'm.romero@plurione.com',
       departamento: 'Sistemas y TI',
       rol: 'Administrador',
-      estado: 'Activo',
-      obligacionesAsignadas: 2
+      completadas: 2,
+      totales: 2,
+      estado: 'Excelente'
     },
     {
       id: 2,
@@ -162,8 +320,9 @@ export default function App() {
       email: 'c.mendoza@plurione.com',
       departamento: 'Finanzas y Contabilidad',
       rol: 'Auditor Compliance',
-      estado: 'Activo',
-      obligacionesAsignadas: 1
+      completadas: 0,
+      totales: 1,
+      estado: 'Atención Req.'
     },
     {
       id: 3,
@@ -171,8 +330,9 @@ export default function App() {
       email: 'a.gomez@plurione.com',
       departamento: 'Recursos Humanos',
       rol: 'Responsable de Área',
-      estado: 'Activo',
-      obligacionesAsignadas: 1
+      completadas: 0,
+      totales: 1,
+      estado: 'En Proceso'
     },
     {
       id: 4,
@@ -180,41 +340,13 @@ export default function App() {
       email: 'd.romero@plurione.com',
       departamento: 'Asuntos legales y cumplimiento normativo',
       rol: 'Oficial de Cumplimiento',
-      estado: 'Activo',
-      obligacionesAsignadas: 1
+      completadas: 0,
+      totales: 1,
+      estado: 'En Proceso'
     }
   ]);
 
   const [filterDepto, setFilterDepto] = useState('Todos');
-  const [showNewUserModal, setShowNewUserModal] = useState(false);
-  const [newUser, setNewUser] = useState({
-    nombre: '',
-    email: '',
-    departamento: 'Asuntos legales y cumplimiento normativo',
-    rol: 'Responsable de Área'
-  });
-
-  const handleAddUser = (e) => {
-    e.preventDefault();
-    if (!newUser.nombre || !newUser.email) return;
-
-    const nuevoColaborador = {
-      id: Date.now(),
-      ...newUser,
-      estado: 'Activo',
-      obligacionesAsignadas: 0
-    };
-
-    setPersonal([nuevoColaborador, ...personal]);
-    setNewUser({
-      nombre: '',
-      email: '',
-      departamento: 'Asuntos legales y cumplimiento normativo',
-      rol: 'Responsable de Área'
-    });
-    setShowNewUserModal(false);
-  };
-
   const personalFiltrado = personal.filter(p => {
     if (filterDepto === 'Todos') return true;
     return p.departamento === filterDepto;
@@ -281,6 +413,10 @@ export default function App() {
     if (filterStatus === 'todas') return true;
     return item.estado === filterStatus;
   });
+
+  // Resultantes de Búsqueda Global
+  const searchResultsObligaciones = searchQuery ? obligaciones.filter(o => o.titulo.toLowerCase().includes(searchQuery.toLowerCase()) || o.ley.toLowerCase().includes(searchQuery.toLowerCase())) : [];
+  const searchResultsDocs = searchQuery ? documentos.filter(d => d.nombreArchivo.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
   // ==========================================
   // ESTADOS LOGIN / REGISTRO
@@ -685,87 +821,207 @@ export default function App() {
       {/* ÁREA PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         
-        {/* HEADER */}
+        {/* HEADER CON BÚSQUEDA GLOBAL Y CAMPANITA */}
         <header className="h-16 border-b border-slate-800 bg-[#0d1322]/80 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-10">
-          <div className="flex items-center gap-4 flex-1 max-w-md">
+          <div className="flex items-center gap-4 flex-1 max-w-md relative">
             <div className="relative w-full">
               <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input 
                 type="text" 
-                placeholder="Buscar en el sistema de cumplimiento..."
+                placeholder="Buscar archivos, licencias, declaraciones o acuses..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSearchResults(true);
+                }}
                 className="w-full bg-[#121929] border border-slate-800 rounded-xl pl-10 pr-4 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
               />
             </div>
+
+            {/* BÚSQUEDA EN VIVO - DROPDOWN */}
+            {showSearchResults && searchQuery && (
+              <div className="absolute top-12 left-0 right-0 bg-[#0d1322] border border-slate-800 rounded-2xl shadow-2xl p-3 z-50 max-h-80 overflow-y-auto space-y-2">
+                <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase border-b border-slate-800 pb-1">
+                  <span>Resultados de búsqueda</span>
+                  <X className="w-3.5 h-3.5 cursor-pointer hover:text-white" onClick={() => setShowSearchResults(false)} />
+                </div>
+
+                {searchResultsObligaciones.length === 0 && searchResultsDocs.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-3 text-center">No se encontraron coincidencias.</p>
+                ) : (
+                  <>
+                    {searchResultsObligaciones.map(o => (
+                      <div key={o.id} onClick={() => { setActiveTab('obligaciones'); setShowSearchResults(false); }} className="p-2 hover:bg-[#121929] rounded-lg cursor-pointer text-xs">
+                        <span className="font-bold text-white block">{o.titulo}</span>
+                        <span className="text-[10px] text-slate-400">{o.ley} · {o.entidad}</span>
+                      </div>
+                    ))}
+                    {searchResultsDocs.map(d => (
+                      <div key={d.id} onClick={() => { setActiveTab('documentos'); setShowSearchResults(false); }} className="p-2 hover:bg-[#121929] rounded-lg cursor-pointer text-xs">
+                        <span className="font-bold text-blue-400 block">{d.nombreArchivo}</span>
+                        <span className="text-[10px] text-slate-400">{d.obligacionAsociada}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
-            <button className="relative p-2 rounded-xl bg-[#121929] border border-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer">
-              <Bell className="w-4 h-4" />
-              {totalVencidas > 0 && (
-                <span className="w-2 h-2 rounded-full bg-rose-500 absolute top-1.5 right-1.5 animate-pulse"></span>
-              )}
-            </button>
+          <div className="flex items-center gap-3 relative">
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 rounded-xl bg-[#121929] border border-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <Bell className="w-4 h-4" />
+                {totalVencidas > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-rose-500 absolute top-1.5 right-1.5 animate-pulse"></span>
+                )}
+              </button>
 
-            <button 
-              onClick={() => setShowNewModal(true)}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nueva Obligación</span>
-            </button>
+              {showNotifications && (
+                <div className="absolute right-0 top-12 w-80 bg-[#0d1322] border border-slate-800 rounded-2xl shadow-2xl p-4 z-50 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Bell className="w-3.5 h-3.5 text-blue-400" />
+                      Notificaciones en Vivo
+                    </h4>
+                    <span className="text-[10px] text-blue-400 font-semibold cursor-pointer" onClick={() => setNotificaciones([])}>
+                      Limpiar
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {notificaciones.length === 0 ? (
+                      <p className="text-[11px] text-slate-500 text-center py-4">No hay notificaciones sin leer.</p>
+                    ) : (
+                      notificaciones.map(n => (
+                        <div key={n.id} className="p-2.5 bg-[#121929] border border-slate-800/80 rounded-xl flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-200 leading-snug">{n.titulo}</p>
+                            <span className="text-[9px] text-slate-500">{n.tiempo}</span>
+                          </div>
+                          {n.tipo === 'urgente' && <span className="w-2 h-2 rounded-full bg-rose-500 mt-1"></span>}
+                          {n.tipo === 'exito' && <span className="w-2 h-2 rounded-full bg-emerald-400 mt-1"></span>}
+                          {n.tipo === 'alerta' && <span className="w-2 h-2 rounded-full bg-amber-400 mt-1"></span>}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {activeTab === 'documentos' ? (
+              <button 
+                onClick={() => setShowUploadModal(true)}
+                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Cargar Evidencia</span>
+              </button>
+            ) : (
+              <button 
+                onClick={() => setShowNewModal(true)}
+                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nueva Obligación</span>
+              </button>
+            )}
           </div>
         </header>
 
         {/* MAIN CONTENT */}
         <main className="p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
           
-          {/* PESTAÑA: CALENDARIO */}
+          {/* PESTAÑA INICIO */}
+          {activeTab === 'inicio' && (
+            <div className="space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-900/20 via-[#0d1322] to-[#0d1322] p-6 rounded-2xl border border-slate-800">
+                <div>
+                  <h1 className="text-xl font-bold text-white mb-1">
+                    ¡Bienvenido de nuevo, {currentUser.nombre.split(' ')[0]}! 👋
+                  </h1>
+                  <p className="text-xs text-slate-400">
+                    Resumen general: Tienes <span className="text-rose-400 font-semibold">{totalVencidas} obligación(es) vencida(s)</span> y <span className="text-amber-400 font-semibold">{totalProximas} pendiente(s)</span>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Próximas y Pendientes</span>
+                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-extrabold text-white">{totalProximas}</span>
+                    <span className="text-xs text-slate-400">en seguimiento</span>
+                  </div>
+                </div>
+
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Atención Requerida</span>
+                    <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                      <AlertCircle className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-extrabold text-rose-400">{totalVencidas}</span>
+                    <span className="text-xs text-slate-400">vencida(s)</span>
+                  </div>
+                </div>
+
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Completadas</span>
+                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-extrabold text-white">{totalCompletadas}</span>
+                    <span className="text-xs text-slate-400">con evidencia auditada</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PESTAÑA: CALENDARIO (CORREGIDO REAL) */}
           {activeTab === 'calendario' && (
             <>
-              {/* Header del Módulo */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0d1322] p-6 rounded-2xl border border-slate-800">
                 <div>
                   <h1 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
                     <CalendarIcon className="w-5 h-5 text-blue-400" />
                     Calendario de Vencimientos Regulatorios
                   </h1>
-                  <p className="text-xs text-slate-400">
-                    Seguimiento visual e interactivo de plazos por día.
-                  </p>
+                  <p className="text-xs text-slate-400">Seguimiento visual e interactivo de plazos por día.</p>
                 </div>
-
                 <div className="flex items-center gap-3 bg-[#121929] px-4 py-2 rounded-xl border border-slate-800 text-xs font-semibold text-white">
-                  <ChevronLeft className="w-4 h-4 text-slate-500 hover:text-white cursor-pointer" />
-                  <span>{currentMonthYear}</span>
-                  <ChevronRight className="w-4 h-4 text-slate-500 hover:text-white cursor-pointer" />
+                  <ChevronLeft onClick={handlePrevMonth} className="w-4 h-4 text-slate-400 hover:text-white cursor-pointer" />
+                  <span>{nombresMeses[currentMonthIndex]} {currentYear}</span>
+                  <ChevronRight onClick={handleNextMonth} className="w-4 h-4 text-slate-400 hover:text-white cursor-pointer" />
                 </div>
               </div>
 
-              {/* GRID PRINCIPAL: CALENDARIO + DETALLE */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                {/* CALENDARIO (8 COLUMNAS) */}
                 <div className="lg:col-span-8 bg-[#0d1322] border border-slate-800 rounded-2xl p-6 shadow-xl">
-                  
-                  {/* Días de la Semana */}
                   <div className="grid grid-cols-7 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-4">
-                    <div>Lun</div>
-                    <div>Mar</div>
-                    <div>Mié</div>
-                    <div>Jue</div>
-                    <div>Vie</div>
-                    <div>Sáb</div>
-                    <div>Dom</div>
+                    <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
                   </div>
-
-                  {/* Matriz de Días */}
                   <div className="grid grid-cols-7 gap-2">
                     {daysInMonth.map((dateStr, index) => {
                       const dayNum = index + 1;
                       const tareas = obligaciones.filter(o => o.vencimiento === dateStr);
                       const isSelected = selectedDate === dateStr;
 
-                      // Indicadores
                       const tieneVencida = tareas.some(t => t.estado === 'vencida');
                       const tieneProxima = tareas.some(t => t.estado === 'proxima');
                       const tieneCompletada = tareas.some(t => t.estado === 'completada');
@@ -780,101 +1036,49 @@ export default function App() {
                               : 'bg-[#121929] border-slate-800/80 hover:border-slate-700 hover:bg-[#151d30]'
                           }`}
                         >
-                          <span className={`text-xs font-bold ${isSelected ? 'text-blue-400' : 'text-slate-300'}`}>
-                            {dayNum}
-                          </span>
-
-                          {/* Puntos / Indicadores de Pendientes */}
+                          <span className={`text-xs font-bold ${isSelected ? 'text-blue-400' : 'text-slate-300'}`}>{dayNum}</span>
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {tieneVencida && (
-                              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" title="Obligación Vencida"></span>
-                            )}
-                            {tieneProxima && (
-                              <span className="w-2 h-2 rounded-full bg-amber-400" title="Obligación Próxima"></span>
-                            )}
-                            {tieneCompletada && (
-                              <span className="w-2 h-2 rounded-full bg-emerald-400" title="Obligación Completada"></span>
-                            )}
+                            {tieneVencida && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>}
+                            {tieneProxima && <span className="w-2 h-2 rounded-full bg-amber-400"></span>}
+                            {tieneCompletada && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
                           </div>
-
-                          {/* Texto / Badge si hay tareas */}
-                          {tareas.length > 0 && (
-                            <span className="text-[9px] font-bold text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded truncate mt-1">
-                              {tareas.length} evento(s)
-                            </span>
-                          )}
+                          {tareas.length > 0 && <span className="text-[9px] font-bold text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded truncate mt-1">{tareas.length} evento(s)</span>}
                         </button>
                       );
                     })}
                   </div>
-
-                  {/* Leyenda de colores */}
-                  <div className="flex items-center gap-4 text-[10px] text-slate-400 pt-4 mt-4 border-t border-slate-800/80">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Vencida
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Pendiente / Próxima
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> Auditada
-                    </span>
-                  </div>
-
                 </div>
 
-                {/* DETALLE DEL DÍA SELECCIONADO (4 COLUMNAS) */}
                 <div className="lg:col-span-4 bg-[#0d1322] border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
                   <div>
                     <div className="border-b border-slate-800/80 pb-4 mb-4">
                       <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Actividades Programadas</span>
-                      <h3 className="text-base font-bold text-white mt-0.5">
-                        {selectedDate}
-                      </h3>
+                      <h3 className="text-base font-bold text-white mt-0.5">{selectedDate}</h3>
                     </div>
-
                     <div className="space-y-3">
                       {tareasDelDiaSeleccionado.length === 0 ? (
                         <div className="text-center py-8 text-slate-500 text-xs">
                           <CalendarIcon className="w-8 h-8 mx-auto mb-2 text-slate-600" />
-                          No hay obligaciones registradas con fecha límite para este día.
+                          No hay obligaciones registradas para este día.
                         </div>
                       ) : (
                         tareasDelDiaSeleccionado.map((item) => (
-                          <div 
-                            key={item.id} 
-                            className="bg-[#121929] border border-slate-800 p-3.5 rounded-xl space-y-2"
-                          >
+                          <div key={item.id} className="bg-[#121929] border border-slate-800 p-3.5 rounded-xl space-y-2">
                             <div className="flex items-start justify-between gap-2">
                               <h4 className="text-xs font-bold text-white leading-snug">{item.titulo}</h4>
-                              {item.estado === 'vencida' && (
-                                <span className="px-2 py-0.5 text-[9px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-full shrink-0">
-                                  Vencida
-                                </span>
-                              )}
-                              {item.estado === 'proxima' && (
-                                <span className="px-2 py-0.5 text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full shrink-0">
-                                  Pendiente
-                                </span>
-                              )}
-                              {item.estado === 'completada' && (
-                                <span className="px-2 py-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full shrink-0">
-                                  Auditada
-                                </span>
-                              )}
+                              {item.estado === 'vencida' && <span className="px-2 py-0.5 text-[9px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-full shrink-0">Vencida</span>}
+                              {item.estado === 'proxima' && <span className="px-2 py-0.5 text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full shrink-0">Pendiente</span>}
+                              {item.estado === 'completada' && <span className="px-2 py-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full shrink-0">Auditada</span>}
                             </div>
-
-                            <p className="text-[10px] text-slate-400" notranslate="true">
-                              {item.entidad} · {item.ley}
-                            </p>
-
+                            <p className="text-[10px] text-slate-400" notranslate="true">{item.entidad} · {item.ley}</p>
+                            
                             <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/60">
                               <span>Resp: <span className="text-slate-300">{item.responsable}</span></span>
                               <button 
                                 onClick={() => handleToggleEstado(item.id)}
                                 className="text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
                               >
-                                {item.estado === 'completada' ? 'Revisar' : 'Completar'}
+                                {item.estado === 'completada' ? 'Revisar' : 'Marcar Auditada'}
                               </button>
                             </div>
                           </div>
@@ -894,23 +1098,20 @@ export default function App() {
                     <span>Asignar Tarea a este Día</span>
                   </button>
                 </div>
-
               </div>
             </>
           )}
 
-          {/* PESTAÑA PERSONAL */}
+          {/* PESTAÑA: PERSONAL */}
           {activeTab === 'empleados' && (
             <>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0d1322] p-6 rounded-2xl border border-slate-800">
                 <div>
                   <h1 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
                     <Users className="w-5 h-5 text-blue-400" />
-                    Gestión de Personal y Control de Accesos
+                    Gestión de Personal y Cumplimiento Individual
                   </h1>
-                  <p className="text-xs text-slate-400">
-                    Directorio del equipo y permisos de auditoría.
-                  </p>
+                  <p className="text-xs text-slate-400">Directorio de colaboradores y métricas de desempeño legal.</p>
                 </div>
 
                 <div className="flex bg-[#121929] p-1 rounded-xl border border-slate-800 self-start md:self-auto overflow-x-auto max-w-full">
@@ -934,57 +1135,81 @@ export default function App() {
                     <thead>
                       <tr className="border-b border-slate-800 bg-[#121929] text-slate-400 uppercase font-bold text-[10px] tracking-wider">
                         <th className="p-4">Colaborador</th>
-                        <th className="p-4">Departamento / Área</th>
-                        <th className="p-4">Rol en Plataforma</th>
-                        <th className="p-4">Carga de Trabajo</th>
-                        <th className="p-4">Estado</th>
-                        <th className="p-4 text-right">Acciones</th>
+                        <th className="p-4">Área / Rol</th>
+                        <th className="p-4">Desempeño de Cumplimiento</th>
+                        <th className="p-4">Estatus</th>
+                        <th className="p-4 text-right">Acción</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60">
-                      {personalFiltrado.map((item) => (
-                        <tr key={item.id} className="hover:bg-[#131b2e]/50 transition-colors">
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs shrink-0">
-                                {item.nombre.split(' ').map(n => n[0]).join('')}
+                      {personalFiltrado.map((item) => {
+                        const porcentaje = Math.round((item.completadas / item.totales) * 100);
+                        return (
+                          <tr key={item.id} className="hover:bg-[#131b2e]/50 transition-colors">
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs shrink-0">
+                                  {item.nombre.split(' ').map(n => n[0]).join('')}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-white text-xs sm:text-sm">{item.nombre}</div>
+                                  <div className="text-[10px] text-slate-400">{item.email}</div>
+                                </div>
                               </div>
-                              <div>
-                                <div className="font-bold text-white text-xs sm:text-sm">{item.nombre}</div>
-                                <div className="text-[11px] text-slate-400">{item.email}</div>
+                            </td>
+
+                            <td className="p-4">
+                              <div className="text-slate-200 font-medium">{item.departamento}</div>
+                              <div className="text-[10px] text-slate-500">{item.rol}</div>
+                            </td>
+
+                            <td className="p-4 w-48">
+                              <div className="flex justify-between items-center text-[10px] mb-1">
+                                <span className="text-slate-400">{item.completadas} de {item.totales} auditadas</span>
+                                <span className="font-bold text-white">{porcentaje}%</span>
                               </div>
-                            </div>
-                          </td>
+                              <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full transition-all duration-500 ${
+                                    porcentaje === 100 ? 'bg-emerald-400' : 'bg-amber-400'
+                                  }`} 
+                                  style={{ width: `${porcentaje}%` }}
+                                ></div>
+                              </div>
+                            </td>
 
-                          <td className="p-4 text-slate-300 font-medium">{item.departamento}</td>
+                            <td className="p-4">
+                              {item.estado === 'Excelente' && (
+                                <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-semibold">
+                                  Excelente
+                                </span>
+                              )}
+                              {item.estado === 'Atención Req.' && (
+                                <span className="px-2.5 py-1 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full text-[10px] font-semibold">
+                                  Atención Req.
+                                </span>
+                              )}
+                              {item.estado === 'En Proceso' && (
+                                <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full text-[10px] font-semibold">
+                                  En Proceso
+                                </span>
+                              )}
+                            </td>
 
-                          <td className="p-4">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-[10px] font-semibold">
-                              <Shield className="w-3 h-3 text-blue-400" />
-                              {item.rol}
-                            </span>
-                          </td>
-
-                          <td className="p-4">
-                            <span className="text-slate-300 font-mono font-semibold">
-                              {item.obligacionesAsignadas} asignación(es)
-                            </span>
-                          </td>
-
-                          <td className="p-4">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                              {item.estado}
-                            </span>
-                          </td>
-
-                          <td className="p-4 text-right">
-                            <button className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer ml-auto">
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                            <td className="p-4 text-right">
+                              <button 
+                                onClick={() => {
+                                  setNewObligacion(prev => ({ ...prev, responsable: item.nombre }));
+                                  setShowNewModal(true);
+                                }}
+                                className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/30 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+                              >
+                                Asignar Tarea
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -992,7 +1217,7 @@ export default function App() {
             </>
           )}
 
-          {/* PESTAÑA OBLIGACIONES */}
+          {/* PESTAÑA: OBLIGACIONES */}
           {activeTab === 'obligaciones' && (
             <>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0d1322] p-6 rounded-2xl border border-slate-800">
@@ -1029,20 +1254,64 @@ export default function App() {
                       {obligacionesFiltradas.map((item) => (
                         <tr key={item.id} className="hover:bg-[#131b2e]/50 transition-colors">
                           <td className="p-4">
-                            <div className="font-bold text-white text-xs sm:text-sm">{item.titulo}</div>
-                            <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5"><FileText className="w-3 h-3 text-slate-500" />{item.ley}</div>
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400 shrink-0">
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <div className="font-bold text-white text-xs sm:text-sm">{item.titulo}</div>
+                                <div className="text-[11px] text-slate-400 mt-0.5">{item.ley}</div>
+                              </div>
+                            </div>
                           </td>
-                          <td className="p-4"><span className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 font-semibold text-slate-300 text-[10px]" notranslate="true">{item.entidad}</span></td>
-                          <td className="p-4"><div className="text-slate-200 font-medium">{item.departamento}</div><div className="text-[10px] text-slate-500">{item.responsable}</div></td>
-                          <td className="p-4"><div className="flex items-center gap-1.5 text-slate-300 font-mono"><Clock className="w-3.5 h-3.5 text-slate-500" />{item.vencimiento}</div></td>
+
                           <td className="p-4">
-                            {item.estado === 'vencida' && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20"><AlertCircle className="w-3 h-3" /> Vencida</span>}
-                            {item.estado === 'proxima' && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20"><Clock className="w-3 h-3" /> Pendiente</span>}
-                            {item.estado === 'completada' && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"><CheckCircle2 className="w-3 h-3" /> Auditada</span>}
+                            <span className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 font-semibold text-slate-300 text-[10px]" notranslate="true">
+                              {item.entidad}
+                            </span>
                           </td>
+
+                          <td className="p-4">
+                            <div className="text-slate-200 font-medium">{item.departamento}</div>
+                            <div className="text-[10px] text-slate-500">{item.responsable}</div>
+                          </td>
+
+                          <td className="p-4">
+                            <div className="flex items-center gap-1.5 text-slate-300 font-mono">
+                              <Clock className="w-3.5 h-3.5 text-slate-500" />
+                              {item.vencimiento}
+                            </div>
+                          </td>
+
+                          <td className="p-4">
+                            {item.estado === 'vencida' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20">
+                                <AlertCircle className="w-3 h-3" /> Vencida
+                              </span>
+                            )}
+                            {item.estado === 'proxima' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20">
+                                <Clock className="w-3 h-3" /> Pendiente
+                              </span>
+                            )}
+                            {item.estado === 'completada' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                                <CheckCircle2 className="w-3 h-3" /> Auditada
+                              </span>
+                            )}
+                          </td>
+
                           <td className="p-4 text-right">
-                            <button onClick={() => handleToggleEstado(item.id)} className={`px-3 py-1.5 rounded-xl font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer ml-auto ${item.estado === 'completada' ? 'bg-slate-800 text-slate-400 hover:text-white' : 'bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600 hover:text-white'}`}>
-                              <Upload className="w-3.5 h-3.5" /><span>{item.estado === 'completada' ? 'Revisar' : 'Marcar Auditada'}</span>
+                            <button 
+                              onClick={() => handleToggleEstado(item.id)}
+                              className={`px-3 py-1.5 rounded-xl font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer ml-auto ${
+                                item.estado === 'completada' 
+                                  ? 'bg-slate-800 text-slate-400 hover:text-white' 
+                                  : 'bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600 hover:text-white'
+                              }`}
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>{item.estado === 'completada' ? 'Revisar' : 'Marcar Auditada'}</span>
                             </button>
                           </td>
                         </tr>
@@ -1054,34 +1323,355 @@ export default function App() {
             </>
           )}
 
-          {/* PESTAÑA INICIO */}
-          {activeTab === 'inicio' && (
-            <div className="space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-900/20 via-[#0d1322] to-[#0d1322] p-6 rounded-2xl border border-slate-800">
+          {/* PESTAÑA: EVIDENCIAS Y DOCS */}
+          {activeTab === 'documentos' && (
+            <>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0d1322] p-6 rounded-2xl border border-slate-800">
                 <div>
-                  <h1 className="text-xl font-bold text-white mb-1">¡Bienvenido de nuevo, {currentUser.nombre.split(' ')[0]}! 👋</h1>
-                  <p className="text-xs text-slate-400">Resumen general: Tienes <span className="text-rose-400 font-semibold">{totalVencidas} obligación(es) vencida(s)</span> y <span className="text-amber-400 font-semibold">{totalProximas} pendiente(s)</span>.</p>
+                  <h1 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                    <FolderCheck className="w-5 h-5 text-blue-400" />
+                    Expediente Digital y Evidencias de Auditoría
+                  </h1>
+                  <p className="text-xs text-slate-400">
+                    Repositorio seguro de acuses, comprobantes y licencias legales.
+                  </p>
+                </div>
+
+                <div className="flex bg-[#121929] p-1 rounded-xl border border-slate-800 self-start md:self-auto">
+                  {['Todos', 'PDF', 'XML', 'DOCX'].map((tipo) => (
+                    <button
+                      key={tipo}
+                      onClick={() => setFilterTipoDoc(tipo)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                        filterTipoDoc === tipo ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {tipo}
+                    </button>
+                  ))}
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5"><span className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">Próximas y Pendientes</span><span className="text-3xl font-extrabold text-white">{totalProximas}</span></div>
-                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5"><span className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">Atención Requerida</span><span className="text-3xl font-extrabold text-rose-400">{totalVencidas}</span></div>
-                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5"><span className="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-2">Completadas</span><span className="text-3xl font-extrabold text-white">{totalCompletadas}</span></div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Documentos Subidos</span>
+                    <File className="w-4 h-4 text-blue-400" />
+                  </div>
+                  <span className="text-3xl font-extrabold text-white">{documentos.length}</span>
+                  <p className="text-[10px] text-slate-500 mt-1">Expedientes digitales activos</p>
+                </div>
+
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Obligaciones Auditadas</span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <span className="text-3xl font-extrabold text-emerald-400">{totalCompletadas}</span>
+                  <p className="text-[10px] text-slate-500 mt-1">Con respaldo completo</p>
+                </div>
+
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Sin Evidencia Adjunta</span>
+                    <AlertCircle className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <span className="text-3xl font-extrabold text-amber-400">
+                    {obligaciones.filter(o => !o.evidenciaSubida).length}
+                  </span>
+                  <p className="text-[10px] text-slate-500 mt-1">Requieren carga urgente</p>
+                </div>
               </div>
-            </div>
+
+              <div className="bg-[#0d1322] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-[#121929] text-slate-400 uppercase font-bold text-[10px] tracking-wider">
+                        <th className="p-4">Documento / Archivo</th>
+                        <th className="p-4">Obligación Vinculada</th>
+                        <th className="p-4">Entidad</th>
+                        <th className="p-4">Subido por</th>
+                        <th className="p-4">Fecha Carga</th>
+                        <th className="p-4 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {documentosFiltrados.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="p-8 text-center text-slate-500">
+                            No hay archivos cargados en este formato.
+                          </td>
+                        </tr>
+                      ) : (
+                        documentosFiltrados.map((doc) => (
+                          <tr key={doc.id} className="hover:bg-[#131b2e]/50 transition-colors">
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-400 shrink-0 font-bold text-[10px]">
+                                  {doc.tipo}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-white text-xs sm:text-sm">{doc.nombreArchivo}</div>
+                                  <div className="text-[10px] text-slate-500">{doc.tamaño}</div>
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="p-4">
+                              <div className="text-slate-200 font-medium">{doc.obligacionAsociada}</div>
+                            </td>
+
+                            <td className="p-4">
+                              <span className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 font-semibold text-slate-300 text-[10px]" notranslate="true">
+                                {doc.entidad}
+                              </span>
+                            </td>
+
+                            <td className="p-4 text-slate-300">{doc.subidoPor}</td>
+
+                            <td className="p-4 text-slate-400 font-mono">{doc.fechaCarga}</td>
+
+                            <td className="p-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button 
+                                  onClick={() => downloadDummyFile(doc)}
+                                  className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition-colors cursor-pointer"
+                                  title="Descargar archivo de comprobación"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => setPreviewDoc(doc)}
+                                  className="p-1.5 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/30 rounded-lg transition-colors cursor-pointer"
+                                  title="Ver Vista Previa Lector"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           )}
 
-          {/* OTROS MÓDULOS EN CONSTRUCCIÓN */}
-          {activeTab !== 'inicio' && activeTab !== 'obligaciones' && activeTab !== 'empleados' && activeTab !== 'calendario' && (
-            <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-12 text-center">
-              <h3 className="text-lg font-bold text-white capitalize mb-1">Módulo: {activeTab}</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto mb-6">Módulo listo para el siguiente paso.</p>
-              <button onClick={() => setActiveTab('obligaciones')} className="bg-blue-600 text-white text-xs font-semibold px-4 py-2 rounded-xl">Ir a Obligaciones</button>
+          {/* PESTAÑA: MI CUENTA */}
+          {activeTab === 'cuenta' && (
+            <div className="space-y-6">
+              <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 text-xl font-bold">
+                    MR
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-white">{currentUser.nombre}</h2>
+                    <p className="text-xs text-slate-400">{currentUser.rol} · {currentUser.departamento}</p>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 text-[10px] font-semibold mt-1">
+                      Microsoft Entra ID Conectado
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Datos de Usuario */}
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-6 space-y-4">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <User className="w-4 h-4 text-blue-400" />
+                    Información Personal y Contacto
+                  </h3>
+
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <label className="block text-[10px] text-slate-400 uppercase font-bold mb-1">Nombre Completo</label>
+                      <input type="text" value={currentUser.nombre} onChange={(e) => setCurrentUser({ ...currentUser, nombre: e.target.value })} className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-blue-500" />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] text-slate-400 uppercase font-bold mb-1">Correo Institucional</label>
+                      <input type="email" value={currentUser.email} disabled className="w-full bg-slate-900/50 border border-slate-800 text-slate-500 rounded-xl px-3.5 py-2 cursor-not-allowed" />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] text-slate-400 uppercase font-bold mb-1">Teléfono Directo</label>
+                      <input type="text" value={currentUser.telefono} onChange={(e) => setCurrentUser({ ...currentUser, telefono: e.target.value })} className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-blue-500" />
+                    </div>
+
+                    <button className="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-xl flex items-center gap-2 text-xs transition-colors cursor-pointer">
+                      <Save className="w-4 h-4" />
+                      <span>Guardar Cambios</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Preferencias de Notificación & Seguridad */}
+                <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-6 space-y-4">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-blue-400" />
+                    Configuración y Notificaciones
+                  </h3>
+
+                  <div className="space-y-3 text-xs">
+                    <div className="flex items-center justify-between p-3 bg-[#121929] border border-slate-800 rounded-xl">
+                      <div>
+                        <p className="font-semibold text-white">Alertas por Correo</p>
+                        <p className="text-[10px] text-slate-400">Recibe aviso cuando venza una obligación.</p>
+                      </div>
+                      <input type="checkbox" checked={currentUser.notifEmail} onChange={(e) => setCurrentUser({ ...currentUser, notifEmail: e.target.checked })} className="accent-blue-600 w-4 h-4 cursor-pointer" />
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-[#121929] border border-slate-800 rounded-xl">
+                      <div>
+                        <p className="font-semibold text-white">Notificaciones Urgentes</p>
+                        <p className="text-[10px] text-slate-400">Alertas emergentes para items críticos.</p>
+                      </div>
+                      <input type="checkbox" checked={currentUser.notifUrgentes} onChange={(e) => setCurrentUser({ ...currentUser, notifUrgentes: e.target.checked })} className="accent-blue-600 w-4 h-4 cursor-pointer" />
+                    </div>
+
+                    <div className="p-3 bg-[#121929] border border-slate-800 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Key className="w-4 h-4 text-slate-400" />
+                        <div>
+                          <p className="font-semibold text-white">Seguridad de la Cuenta</p>
+                          <p className="text-[10px] text-slate-400">Autenticación Multifactor (2FA) Activa</p>
+                        </div>
+                      </div>
+                      <span className="text-emerald-400 font-bold text-[10px]">PROTEGIDO</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
         </main>
       </div>
+
+      {/* MODAL: VISTA PREVIA DE DOCUMENTO */}
+      {previewDoc && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0d1322] border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative space-y-4">
+            <button 
+              onClick={() => setPreviewDoc(null)} 
+              className="absolute right-4 top-4 text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+              <div className="p-2 bg-blue-600/10 border border-blue-500/20 text-blue-400 rounded-xl font-bold text-xs">
+                {previewDoc.tipo}
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white">{previewDoc.nombreArchivo}</h3>
+                <p className="text-[10px] text-slate-400">{previewDoc.obligacionAsociada} · {previewDoc.entidad}</p>
+              </div>
+            </div>
+
+            <div className="bg-[#121929] border border-slate-800 rounded-xl p-6 space-y-4 font-mono text-xs text-slate-300">
+              <div className="flex justify-between text-[10px] text-slate-500 border-b border-slate-800/80 pb-2">
+                <span>PluriOne Compliance Vault v2.4</span>
+                <span>AUDIT_STAMP_VALIDATED</span>
+              </div>
+              <p className="text-slate-400">Cargado por: <span className="text-white font-bold">{previewDoc.subidoPor}</span> el {previewDoc.fechaCarga}</p>
+              <div className="p-4 bg-slate-900/60 rounded-lg border border-slate-800 text-[11px] space-y-2">
+                <p className="text-emerald-400 font-bold">✓ DOCUMENTO VERIFICADO CON CIFRADO</p>
+                <p>Este archivo sirve como constancia oficial de cumplimiento ante {previewDoc.entidad} para fines de auditoría interna y legal.</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button 
+                onClick={() => downloadDummyFile(previewDoc)} 
+                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-4 py-2 rounded-xl flex items-center gap-2 cursor-pointer shadow-lg shadow-blue-600/20"
+              >
+                <Download className="w-4 h-4" />
+                Descargar Evidencia (.txt)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CARGAR EVIDENCIA REAL */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0d1322] border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <button onClick={() => setShowUploadModal(false)} className="absolute right-4 top-4 text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer">
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="mb-5">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Upload className="w-5 h-5 text-blue-400" />
+                Cargar Evidencia de Auditoría
+              </h3>
+              <p className="text-xs text-slate-400">Adjunta el archivo real que respalda el cumplimiento.</p>
+            </div>
+
+            <form onSubmit={handleUploadDoc} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Obligación Asociada</label>
+                <select 
+                  value={newDoc.obligacionAsociada}
+                  onChange={(e) => setNewDoc({ ...newDoc, obligacionAsociada: e.target.value })}
+                  className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer"
+                >
+                  {obligaciones.map((o) => (
+                    <option key={o.id} value={o.titulo}>{o.titulo} ({o.entidad})</option>
+                  ))}
+                </select>
+              </div>
+
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileSelect} 
+                className="hidden" 
+                accept=".pdf,.xml,.docx,.zip"
+              />
+
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-800 hover:border-blue-500/50 rounded-xl p-6 text-center bg-[#121929]/50 cursor-pointer transition-colors"
+              >
+                <Upload className="w-8 h-8 mx-auto text-blue-400 mb-2" />
+                {selectedFile ? (
+                  <div>
+                    <p className="text-xs text-emerald-400 font-bold">{selectedFile.name}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-xs text-slate-300 font-semibold">Haz clic aquí para seleccionar un archivo</p>
+                    <p className="text-[10px] text-slate-500 mt-1">Soporta PDF, XML, DOCX o ZIP</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+                <button type="button" onClick={() => setShowUploadModal(false)} className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white cursor-pointer">Cancelar</button>
+                <button 
+                  type="submit" 
+                  disabled={!selectedFile}
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold shadow-lg transition-colors ${
+                    selectedFile 
+                      ? 'bg-blue-600 hover:bg-blue-500 text-white cursor-pointer shadow-blue-600/25' 
+                      : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                  }`}
+                >
+                  Cargar Documento
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: NUEVA OBLIGACIÓN */}
       {showNewModal && (
@@ -1090,52 +1680,15 @@ export default function App() {
             <button onClick={() => setShowNewModal(false)} className="absolute right-4 top-4 text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer">
               <X className="w-5 h-5" />
             </button>
-
             <div className="mb-5">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Plus className="w-5 h-5 text-blue-400" />
-                Registrar Nueva Obligación Legal
-              </h3>
-              <p className="text-xs text-slate-400">Ingresa los datos requeridos para iniciar el monitoreo.</p>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2"><Plus className="w-5 h-5 text-blue-400" />Registrar Nueva Obligación Legal</h3>
             </div>
-
             <form onSubmit={handleAddObligacion} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Título de la Obligación</label>
-                <input type="text" required placeholder="Ej. Reporte Mensual de Finanzas" value={newObligacion.titulo} onChange={(e) => setNewObligacion({ ...newObligacion, titulo: e.target.value })} className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Entidad Regulatoria</label>
-                  <select value={newObligacion.entidad} onChange={(e) => setNewObligacion({ ...newObligacion, entidad: e.target.value })} className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer">
-                    <option value="SAT">SAT</option>
-                    <option value="STPS">STPS</option>
-                    <option value="INAI">INAI</option>
-                    <option value="PROFECO">PROFECO</option>
-                    <option value="Interna">Auditoría Interna</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Fecha Vencimiento</label>
-                  <input type="date" required value={newObligacion.vencimiento} onChange={(e) => setNewObligacion({ ...newObligacion, vencimiento: e.target.value })} className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Fundamento Legal / Ley</label>
-                <input type="text" placeholder="Ej. Ley del ISR Art. 76" value={newObligacion.ley} onChange={(e) => setNewObligacion({ ...newObligacion, ley: e.target.value })} className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500" />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Responsable Asignado</label>
-                <input type="text" placeholder="Ej. Miguel Romero" value={newObligacion.responsable} onChange={(e) => setNewObligacion({ ...newObligacion, responsable: e.target.value })} className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500" />
-              </div>
-
+              <input type="text" required placeholder="Ej. Reporte Mensual de Finanzas" value={newObligacion.titulo} onChange={(e) => setNewObligacion({ ...newObligacion, titulo: e.target.value })} className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white" />
+              <input type="date" required value={newObligacion.vencimiento} onChange={(e) => setNewObligacion({ ...newObligacion, vencimiento: e.target.value })} className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white" />
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
-                <button type="button" onClick={() => setShowNewModal(false)} className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white cursor-pointer">Cancelar</button>
-                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-4 py-2 rounded-xl text-xs shadow-lg shadow-blue-600/25 cursor-pointer">Guardar Obligación</button>
+                <button type="button" onClick={() => setShowNewModal(false)} className="px-4 py-2 text-xs text-slate-400">Cancelar</button>
+                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs">Guardar Obligación</button>
               </div>
             </form>
           </div>
