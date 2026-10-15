@@ -28,20 +28,14 @@ import {
   FileText,
   Upload,
   X,
-  UserPlus,
   Shield,
-  MoreVertical,
-  Briefcase,
   ChevronLeft,
   ChevronRight,
   Download,
   File,
   ExternalLink,
-  Award,
-  TrendingUp,
   Save,
-  Key,
-  Smartphone
+  Key
 } from 'lucide-react';
 
 export default function App() {
@@ -49,7 +43,7 @@ export default function App() {
   // ESTADO GLOBAL DE AUTENTICACIÓN Y SESIÓN
   // ==========================================
   const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [activeTab, setActiveTab] = useState('inicio');
+  const [activeTab, setActiveTab] = useState('calendario');
 
   const [currentUser, setCurrentUser] = useState({
     nombre: 'Miguel Romero Morales',
@@ -100,7 +94,7 @@ export default function App() {
       entidad: 'SAT',
       ley: 'LMISR Art. 99',
       departamento: 'Finanzas y Contabilidad',
-      vencimiento: '2026-09-23',
+      vencimiento: '2026-10-23',
       estado: 'vencida',
       responsable: 'Carlos Mendoza',
       evidenciaSubida: false
@@ -111,7 +105,7 @@ export default function App() {
       entidad: 'STPS',
       ley: 'NOM-030-STPS-2009',
       departamento: 'Recursos Humanos',
-      vencimiento: '2026-09-30',
+      vencimiento: '2026-10-30',
       estado: 'proxima',
       responsable: 'Ana Laura Gómez',
       evidenciaSubida: false
@@ -122,7 +116,7 @@ export default function App() {
       entidad: 'SAT',
       ley: 'Código Fiscal de la Federación',
       departamento: 'Finanzas y Contabilidad',
-      vencimiento: '2026-09-17',
+      vencimiento: '2026-10-17',
       estado: 'completada',
       responsable: 'Miguel Romero',
       evidenciaSubida: true
@@ -133,7 +127,7 @@ export default function App() {
       entidad: 'INAI',
       ley: 'LFPDPPP Art. 15',
       departamento: 'Asuntos legales y cumplimiento normativo',
-      vencimiento: '2026-10-15',
+      vencimiento: '2026-10-20',
       estado: 'proxima',
       responsable: 'Diana Romero',
       evidenciaSubida: false
@@ -144,7 +138,7 @@ export default function App() {
       entidad: 'Interna',
       ley: 'ISO 27001 A.12',
       departamento: 'Sistemas y TI',
-      vencimiento: '2026-09-20',
+      vencimiento: '2026-10-13',
       estado: 'completada',
       responsable: 'Miguel Romero',
       evidenciaSubida: true
@@ -156,10 +150,11 @@ export default function App() {
   const totalCompletadas = obligaciones.filter(o => o.estado === 'completada').length;
 
   // ==========================================
-  // NAVEGACIÓN Y LÓGICA DINÁMICA DEL CALENDARIO (FIX)
+  // NAVEGACIÓN Y LÓGICA REPARADA DEL CALENDARIO
   // ==========================================
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 8, 1)); // Septiembre 2026
-  const [selectedDate, setSelectedDate] = useState('2026-09-23');
+  const [currentYear, setCurrentYear] = useState(2026);
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(9); // 9 = Octubre
+  const [selectedDate, setSelectedDate] = useState('2026-10-13');
 
   const nombresMeses = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -167,25 +162,51 @@ export default function App() {
   ];
 
   const handlePrevMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    if (currentMonthIndex === 0) {
+      setCurrentMonthIndex(11);
+      setCurrentYear(prev => prev - 1);
+      setSelectedDate(`${currentYear - 1}-12-01`);
+    } else {
+      const nextMonth = currentMonthIndex - 1;
+      setCurrentMonthIndex(nextMonth);
+      const mStr = (nextMonth + 1).toString().padStart(2, '0');
+      setSelectedDate(`${currentYear}-${mStr}-01`);
+    }
   };
 
   const handleNextMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    if (currentMonthIndex === 11) {
+      setCurrentMonthIndex(0);
+      setCurrentYear(prev => prev + 1);
+      setSelectedDate(`${currentYear + 1}-01-01`);
+    } else {
+      const nextMonth = currentMonthIndex + 1;
+      setCurrentMonthIndex(nextMonth);
+      const mStr = (nextMonth + 1).toString().padStart(2, '0');
+      setSelectedDate(`${currentYear}-${mStr}-01`);
+    }
   };
 
-  const currentYear = currentDate.getFullYear();
-  const currentMonthIndex = currentDate.getMonth();
+  const firstDayOfWeek = new Date(currentYear, currentMonthIndex, 1).getDay();
+  const startingOffset = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
   const daysInMonthCount = new Date(currentYear, currentMonthIndex + 1, 0).getDate();
+
+  const emptyDays = Array.from({ length: startingOffset }, (_, i) => i);
 
   const daysInMonth = Array.from({ length: daysInMonthCount }, (_, i) => {
     const dayNum = i + 1;
-    const formattedMonth = currentMonthIndex + 1 < 10 ? `0${currentMonthIndex + 1}` : `${currentMonthIndex + 1}`;
-    const formattedDay = dayNum < 10 ? `0${dayNum}` : `${dayNum}`;
+    const formattedMonth = (currentMonthIndex + 1).toString().padStart(2, '0');
+    const formattedDay = dayNum.toString().padStart(2, '0');
     return `${currentYear}-${formattedMonth}-${formattedDay}`;
   });
 
   const tareasDelDiaSeleccionado = obligaciones.filter(o => o.vencimiento === selectedDate);
+
+  const formatFechaVista = (fechaStr) => {
+    if (!fechaStr) return '';
+    const [y, m, d] = fechaStr.split('-');
+    return `${d}/${m}/${y}`;
+  };
 
   // ==========================================
   // ESTADO Y LÓGICA DE EVIDENCIAS / DOCS
@@ -193,13 +214,13 @@ export default function App() {
   const [documentos, setDocumentos] = useState([
     {
       id: 1,
-      nombreArchivo: 'Acuse_Declaracion_Mensual_Sep2026.pdf',
+      nombreArchivo: 'Acuse_Declaracion_Mensual_Oct2026.pdf',
       tipo: 'PDF',
       tamaño: '2.4 MB',
       obligacionAsociada: 'Declaración mensual de impuestos',
       entidad: 'SAT',
       subidoPor: 'Miguel Romero',
-      fechaCarga: '2026-09-17'
+      fechaCarga: '2026-10-17'
     },
     {
       id: 2,
@@ -209,17 +230,17 @@ export default function App() {
       obligacionAsociada: 'Dictamen de Seguridad e Higiene',
       entidad: 'STPS',
       subidoPor: 'Ana Laura Gómez',
-      fechaCarga: '2026-09-12'
+      fechaCarga: '2026-10-12'
     },
     {
       id: 3,
-      nombreArchivo: 'CFDI_Nomina_Quincenal_Sep.xml',
+      nombreArchivo: 'CFDI_Nomina_Quincenal_Oct.xml',
       tipo: 'XML',
       tamaño: '840 KB',
       obligacionAsociada: 'Entrega de CFDI de nómina',
       entidad: 'SAT',
       subidoPor: 'Carlos Mendoza',
-      fechaCarga: '2026-09-10'
+      fechaCarga: '2026-10-10'
     }
   ]);
 
@@ -273,17 +294,7 @@ export default function App() {
   };
 
   const downloadDummyFile = (doc) => {
-    const content = `PLURIONE LEGALTECH & COMPLIANCE
-======================================
-EVIDENCIA DE AUDITORÍA REGISTRADA
-======================================
-Nombre del Archivo: ${doc.nombreArchivo}
-Obligación: ${doc.obligacionAsociada}
-Entidad Regulatoria: ${doc.entidad}
-Subido Por: ${doc.subidoPor}
-Fecha de Carga: ${doc.fechaCarga}
-Estado de Validación: VERIFICADO Y CIFRADO
-======================================`;
+    const content = `PLURIONE LEGALTECH & COMPLIANCE\n======================================\nEVIDENCIA DE AUDITORÍA REGISTRADA\n======================================\nNombre del Archivo: ${doc.nombreArchivo}\nObligación: ${doc.obligacionAsociada}\nEntidad Regulatoria: ${doc.entidad}\nSubido Por: ${doc.subidoPor}\nFecha de Carga: ${doc.fechaCarga}\nEstado de Validación: VERIFICADO Y CIFRADO\n======================================`;
 
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -414,14 +425,13 @@ Estado de Validación: VERIFICADO Y CIFRADO
     return item.estado === filterStatus;
   });
 
-  // Resultantes de Búsqueda Global
   const searchResultsObligaciones = searchQuery ? obligaciones.filter(o => o.titulo.toLowerCase().includes(searchQuery.toLowerCase()) || o.ley.toLowerCase().includes(searchQuery.toLowerCase())) : [];
   const searchResultsDocs = searchQuery ? documentos.filter(d => d.nombreArchivo.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
   // ==========================================
   // ESTADOS LOGIN / REGISTRO
   // ==========================================
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loginFormData, setLoginFormData] = useState({
     nombre: '',
@@ -437,16 +447,11 @@ Estado de Validación: VERIFICADO Y CIFRADO
   };
 
   const [activeCardIndex, setActiveCardIndex] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated || obligaciones.length === 0) return;
     const interval = setInterval(() => {
-      setIsTransitioning(true);
-      setTimeout(() => {
-        setActiveCardIndex((prev) => (prev + 1) % obligaciones.length);
-        setIsTransitioning(false);
-      }, 300);
+      setActiveCardIndex((prev) => (prev + 1) % obligaciones.length);
     }, 3500);
     return () => clearInterval(interval);
   }, [obligaciones.length, isAuthenticated]);
@@ -488,9 +493,10 @@ Estado de Validación: VERIFICADO Y CIFRADO
               <p className="text-[11px] font-bold tracking-widest text-blue-400 uppercase mb-2">
                 PLATAFORMA DE SEGUIMIENTO DE OBLIGACIONES LEGALES
               </p>
+              
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white leading-tight mb-4">
                 Cada obligación legal, <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-blue-500">
+                <span className="text-blue-400 font-bold">
                   cada plazo crítico, bajo control.
                 </span>
               </h1>
@@ -509,11 +515,11 @@ Estado de Validación: VERIFICADO Y CIFRADO
                   <span className="text-slate-500 text-[11px]">Sincronizado</span>
                 </div>
 
-                <div className={`transition-all duration-300 ${isTransitioning ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}`}>
+                <div>
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-xs sm:text-sm font-semibold text-slate-100">{currentCard?.titulo}</h4>
-                      <p className="text-[11px] text-slate-400 mt-0.5" notranslate="true">{currentCard?.entidad} · {currentCard?.ley}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{currentCard?.entidad} · {currentCard?.ley}</p>
                     </div>
                     {currentCard?.estado === 'vencida' && (
                       <span className="px-2.5 py-1 text-[10px] font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-full flex items-center gap-1 shrink-0">
@@ -804,7 +810,7 @@ Estado de Validación: VERIFICADO Y CIFRADO
               </div>
               <div className="overflow-hidden">
                 <h4 className="text-xs font-semibold text-white truncate">{currentUser.nombre}</h4>
-                <p className="text-[10px] text-slate-500 truncate">{currentUser.rol}</p>
+                <p className="text-[10px] text-slate-400 truncate">{currentUser.rol}</p>
               </div>
             </div>
             <button 
@@ -993,9 +999,9 @@ Estado de Validación: VERIFICADO Y CIFRADO
             </div>
           )}
 
-          {/* PESTAÑA: CALENDARIO (CORREGIDO REAL) */}
+          {/* PESTAÑA: CALENDARIO REPARADO DE RAÍZ */}
           {activeTab === 'calendario' && (
-            <>
+            <div key={`${currentYear}-${currentMonthIndex}`} className="space-y-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0d1322] p-6 rounded-2xl border border-slate-800">
                 <div>
                   <h1 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
@@ -1004,21 +1010,43 @@ Estado de Validación: VERIFICADO Y CIFRADO
                   </h1>
                   <p className="text-xs text-slate-400">Seguimiento visual e interactivo de plazos por día.</p>
                 </div>
+
                 <div className="flex items-center gap-3 bg-[#121929] px-4 py-2 rounded-xl border border-slate-800 text-xs font-semibold text-white">
-                  <ChevronLeft onClick={handlePrevMonth} className="w-4 h-4 text-slate-400 hover:text-white cursor-pointer" />
-                  <span>{nombresMeses[currentMonthIndex]} {currentYear}</span>
-                  <ChevronRight onClick={handleNextMonth} className="w-4 h-4 text-slate-400 hover:text-white cursor-pointer" />
+                  <button 
+                    type="button"
+                    onClick={handlePrevMonth} 
+                    className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer text-slate-400 hover:text-white flex items-center justify-center"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <span className="font-extrabold min-w-[130px] text-center select-none text-blue-400 text-sm">
+                    {nombresMeses[currentMonthIndex]} {currentYear}
+                  </span>
+
+                  <button 
+                    type="button"
+                    onClick={handleNextMonth} 
+                    className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer text-slate-400 hover:text-white flex items-center justify-center"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <div className="lg:col-span-8 bg-[#0d1322] border border-slate-800 rounded-2xl p-6 shadow-xl">
-                  <div className="grid grid-cols-7 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-4">
-                    <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+                  <div className="grid grid-cols-7 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-slate-800/60 pb-2">
+                    <div>LUN</div><div>MAR</div><div>MIÉ</div><div>JUE</div><div>VIE</div><div>SÁB</div><div>DOM</div>
                   </div>
+
                   <div className="grid grid-cols-7 gap-2">
-                    {daysInMonth.map((dateStr, index) => {
-                      const dayNum = index + 1;
+                    {emptyDays.map(emptyIndex => (
+                      <div key={`empty-${emptyIndex}`} className="min-h-[75px] bg-[#0b101d]/40 rounded-xl border border-slate-900/50"></div>
+                    ))}
+
+                    {daysInMonth.map((dateStr) => {
+                      const dayNum = parseInt(dateStr.split('-')[2], 10);
                       const tareas = obligaciones.filter(o => o.vencimiento === dateStr);
                       const isSelected = selectedDate === dateStr;
 
@@ -1032,17 +1060,21 @@ Estado de Validación: VERIFICADO Y CIFRADO
                           onClick={() => setSelectedDate(dateStr)}
                           className={`min-h-[75px] p-2 rounded-xl border transition-all text-left flex flex-col justify-between cursor-pointer ${
                             isSelected 
-                              ? 'bg-blue-600/15 border-blue-500 shadow-md shadow-blue-500/10' 
+                              ? 'bg-blue-600/20 border-blue-500 shadow-md shadow-blue-500/20 ring-1 ring-blue-500' 
                               : 'bg-[#121929] border-slate-800/80 hover:border-slate-700 hover:bg-[#151d30]'
                           }`}
                         >
                           <span className={`text-xs font-bold ${isSelected ? 'text-blue-400' : 'text-slate-300'}`}>{dayNum}</span>
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {tieneVencida && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>}
-                            {tieneProxima && <span className="w-2 h-2 rounded-full bg-amber-400"></span>}
-                            {tieneCompletada && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
+                            {tieneVencida && <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" title="Vencida"></span>}
+                            {tieneProxima && <span className="w-2 h-2 rounded-full bg-amber-400" title="Pendiente"></span>}
+                            {tieneCompletada && <span className="w-2 h-2 rounded-full bg-emerald-400" title="Auditada"></span>}
                           </div>
-                          {tareas.length > 0 && <span className="text-[9px] font-bold text-slate-400 bg-slate-800/80 px-1.5 py-0.5 rounded truncate mt-1">{tareas.length} evento(s)</span>}
+                          {tareas.length > 0 && (
+                            <span className="text-[9px] font-bold text-slate-300 bg-slate-800 px-1.5 py-0.5 rounded truncate mt-1">
+                              {tareas.length} evento(s)
+                            </span>
+                          )}
                         </button>
                       );
                     })}
@@ -1053,8 +1085,9 @@ Estado de Validación: VERIFICADO Y CIFRADO
                   <div>
                     <div className="border-b border-slate-800/80 pb-4 mb-4">
                       <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Actividades Programadas</span>
-                      <h3 className="text-base font-bold text-white mt-0.5">{selectedDate}</h3>
+                      <h3 className="text-base font-bold text-white mt-0.5">{formatFechaVista(selectedDate)}</h3>
                     </div>
+
                     <div className="space-y-3">
                       {tareasDelDiaSeleccionado.length === 0 ? (
                         <div className="text-center py-8 text-slate-500 text-xs">
@@ -1070,7 +1103,7 @@ Estado de Validación: VERIFICADO Y CIFRADO
                               {item.estado === 'proxima' && <span className="px-2 py-0.5 text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full shrink-0">Pendiente</span>}
                               {item.estado === 'completada' && <span className="px-2 py-0.5 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full shrink-0">Auditada</span>}
                             </div>
-                            <p className="text-[10px] text-slate-400" notranslate="true">{item.entidad} · {item.ley}</p>
+                            <p className="text-[10px] text-slate-400">{item.entidad} · {item.ley}</p>
                             
                             <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/60">
                               <span>Resp: <span className="text-slate-300">{item.responsable}</span></span>
@@ -1099,7 +1132,7 @@ Estado de Validación: VERIFICADO Y CIFRADO
                   </button>
                 </div>
               </div>
-            </>
+            </div>
           )}
 
           {/* PESTAÑA: PERSONAL */}
@@ -1266,7 +1299,7 @@ Estado de Validación: VERIFICADO Y CIFRADO
                           </td>
 
                           <td className="p-4">
-                            <span className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 font-semibold text-slate-300 text-[10px]" notranslate="true">
+                            <span className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 font-semibold text-slate-300 text-[10px]">
                               {item.entidad}
                             </span>
                           </td>
@@ -1423,7 +1456,7 @@ Estado de Validación: VERIFICADO Y CIFRADO
                             </td>
 
                             <td className="p-4">
-                              <span className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 font-semibold text-slate-300 text-[10px]" notranslate="true">
+                              <span className="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 font-semibold text-slate-300 text-[10px]">
                                 {doc.entidad}
                               </span>
                             </td>
@@ -1479,7 +1512,6 @@ Estado de Validación: VERIFICADO Y CIFRADO
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Datos de Usuario */}
                 <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-6 space-y-4">
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
                     <User className="w-4 h-4 text-blue-400" />
@@ -1509,7 +1541,6 @@ Estado de Validación: VERIFICADO Y CIFRADO
                   </div>
                 </div>
 
-                {/* Preferencias de Notificación & Seguridad */}
                 <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-6 space-y-4">
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
                     <Shield className="w-4 h-4 text-blue-400" />
@@ -1662,7 +1693,7 @@ Estado de Validación: VERIFICADO Y CIFRADO
                   className={`px-4 py-2 rounded-xl text-xs font-semibold shadow-lg transition-colors ${
                     selectedFile 
                       ? 'bg-blue-600 hover:bg-blue-500 text-white cursor-pointer shadow-blue-600/25' 
-                      : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                      : 'bg-[#121929] text-slate-500 border border-slate-800 cursor-not-allowed'
                   }`}
                 >
                   Cargar Documento
