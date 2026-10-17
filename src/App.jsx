@@ -87,12 +87,12 @@ export default function App() {
   // ==========================================
   // ESTADO CENTRALIZADO DE OBLIGACIONES
   // ==========================================
-  const [obligaciones, setObligaciones] = useState([
+   const [obligaciones, setObligaciones] = useState([
     {
       id: 1,
       titulo: 'Entrega de CFDI de nómina',
       entidad: 'SAT',
-      ley: 'LMISR Art. 99',
+      ley: 'LISR Art. 99',
       departamento: 'Finanzas y Contabilidad',
       vencimiento: '2026-10-23',
       estado: 'vencida',
@@ -146,6 +146,24 @@ export default function App() {
   ]);
 
   // ==========================================
+  // OBLIGACIONES DEL USUARIO (Para que el calendario las lea sin broncas)
+  // ==========================================
+  const getObligacionesDelUsuario = () => {
+    if (!currentUser) return [];
+    if (currentUser.rol === 'Administrador' || currentUser.rol === 'Administrador de Cumplimiento') {
+      return obligaciones || [];
+    }
+    return (obligaciones || []).filter(o => {
+      if (!o || !o.responsable) return false;
+      const respLower = o.responsable.trim().toLowerCase();
+      const userLower = (currentUser.nombre || '').trim().toLowerCase();
+      return respLower.includes(userLower) || userLower.includes(respLower) || o.departamento === currentUser.departamento;
+    });
+  };
+
+  const obligacionesDelUsuario = getObligacionesDelUsuario();
+
+  // ==========================================
   // NAVEGACIÓN Y LÓGICA REPARADA DEL CALENDARIO
   // ==========================================
   const [currentYear, setCurrentYear] = useState(2026);
@@ -196,7 +214,8 @@ export default function App() {
     return `${currentYear}-${formattedMonth}-${formattedDay}`;
   });
 
-  const tareasDelDiaSeleccionado = obligaciones.filter(o => o.vencimiento === selectedDate);
+  // Cambiar esta línea para que use las obligaciones filtradas del usuario:
+  const tareasDelDiaSeleccionado = obligacionesDelUsuario.filter(o => o.vencimiento === selectedDate);
 
   const formatFechaVista = (fechaStr) => {
     if (!fechaStr) return '';
@@ -348,6 +367,15 @@ export default function App() {
   const [filterStatus, setFilterStatus] = useState('todas');
   const [showNewModal, setShowNewModal] = useState(false);
 
+  const obligacionesFiltradas = obligacionesDelUsuario.filter(item => {
+    if (filterStatus === 'todas') return true;
+    return item.estado === filterStatus;
+  });
+
+  const totalVencidas = obligacionesDelUsuario.filter(o => o.estado === 'vencida').length;
+  const totalProximas = obligacionesDelUsuario.filter(o => o.estado === 'proxima').length;
+  const totalCompletadas = obligacionesDelUsuario.filter(o => o.estado === 'completada').length;
+  
   const [newObligacion, setNewObligacion] = useState({
     titulo: '',
     entidad: 'SAT',
@@ -399,25 +427,6 @@ export default function App() {
     );
   };
 
-  // ------------------------------------------
-  // FILTRADO INTELIGENTE DE OBLIGACIONES Y MÉTRICAS
-  // ------------------------------------------
-  const obligacionesDelUsuario = (currentUser && currentUser.rol === 'Administrador')
-    ? obligaciones 
-    : obligaciones.filter(o => 
-        (o.responsable && o.responsable.toLowerCase() === (currentUser?.nombre || '').toLowerCase()) || 
-        o.departamento === currentUser?.departamento
-      );
-
-  const obligacionesFiltradas = obligacionesDelUsuario.filter(item => {
-    if (filterStatus === 'todas') return true;
-    return item.estado === filterStatus;
-  });
-
-  const totalVencidas = obligacionesDelUsuario.filter(o => o.estado === 'vencida').length;
-  const totalProximas = obligacionesDelUsuario.filter(o => o.estado === 'proxima').length;
-  const totalCompletadas = obligacionesDelUsuario.filter(o => o.estado === 'completada').length;
-  
   const searchResultsObligaciones = searchQuery ? obligaciones.filter(o => o.titulo.toLowerCase().includes(searchQuery.toLowerCase()) || o.ley.toLowerCase().includes(searchQuery.toLowerCase())) : [];
   const searchResultsDocs = searchQuery ? documentos.filter(d => d.nombreArchivo.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
@@ -1100,7 +1109,7 @@ export default function App() {
 
                     {daysInMonth.map((dateStr) => {
                       const dayNum = parseInt(dateStr.split('-')[2], 10);
-                      const tareas = obligaciones.filter(o => o.vencimiento === dateStr);
+                      const tareas = obligacionesDelUsuario.filter(o => o.vencimiento === dateStr)
                       const isSelected = selectedDate === dateStr;
 
                       const tieneVencida = tareas.some(t => t.estado === 'vencida');
