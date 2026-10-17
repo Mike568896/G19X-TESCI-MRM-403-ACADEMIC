@@ -145,10 +145,6 @@ export default function App() {
     }
   ]);
 
-  const totalVencidas = obligaciones.filter(o => o.estado === 'vencida').length;
-  const totalProximas = obligaciones.filter(o => o.estado === 'proxima').length;
-  const totalCompletadas = obligaciones.filter(o => o.estado === 'completada').length;
-
   // ==========================================
   // NAVEGACIÓN Y LÓGICA REPARADA DEL CALENDARIO
   // ==========================================
@@ -314,48 +310,31 @@ export default function App() {
   // ==========================================
   // ESTADO Y LÓGICA DE PERSONAL
   // ==========================================
-  const [personal] = useState([
-    {
-      id: 1,
-      nombre: 'Miguel Romero',
-      email: 'm.romero@plurione.com',
-      departamento: 'Sistemas y TI',
-      rol: 'Administrador',
-      completadas: 2,
-      totales: 2,
-      estado: 'Excelente'
-    },
-    {
-      id: 2,
-      nombre: 'Carlos Mendoza',
-      email: 'c.mendoza@plurione.com',
-      departamento: 'Finanzas y Contabilidad',
-      rol: 'Auditor Compliance',
-      completadas: 0,
-      totales: 1,
-      estado: 'Atención Req.'
-    },
-    {
-      id: 3,
-      nombre: 'Ana Laura Gómez',
-      email: 'a.gomez@plurione.com',
-      departamento: 'Recursos Humanos',
-      rol: 'Responsable de Área',
-      completadas: 0,
-      totales: 1,
-      estado: 'En Proceso'
-    },
-    {
-      id: 4,
-      nombre: 'Diana Romero',
-      email: 'd.romero@plurione.com',
-      departamento: 'Asuntos legales y cumplimiento normativo',
-      rol: 'Oficial de Cumplimiento',
-      completadas: 0,
-      totales: 1,
-      estado: 'En Proceso'
+  // Cargar usuarios reales desde el Backend SQLite en tiempo real (Vista Admin)
+  const [personal, setPersonal] = useState([]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetch('http://localhost:5000/api/users')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            const personalFormateado = data.map(u => ({
+              id: u.id,
+              nombre: u.nombre,
+              email: u.email,
+              departamento: u.departamento || 'Sistemas y TI',
+              rol: u.rol || 'Empleado',
+              completadas: u.rol === 'Administrador' ? 2 : 0,
+              totales: u.rol === 'Administrador' ? 2 : 1,
+              estado: u.rol === 'Administrador' ? 'Excelente' : 'En Proceso'
+            }));
+            setPersonal(personalFormateado);
+          }
+        })
+        .catch(err => console.error('Error al cargar personal:', err));
     }
-  ]);
+  }, [isAuthenticated]);
 
   const [filterDepto, setFilterDepto] = useState('Todos');
   const personalFiltrado = personal.filter(p => {
@@ -420,18 +399,32 @@ export default function App() {
     );
   };
 
-  const obligacionesFiltradas = obligaciones.filter(item => {
+  // ------------------------------------------
+  // FILTRADO INTELIGENTE DE OBLIGACIONES Y MÉTRICAS
+  // ------------------------------------------
+  const obligacionesDelUsuario = (currentUser && currentUser.rol === 'Administrador')
+    ? obligaciones 
+    : obligaciones.filter(o => 
+        (o.responsable && o.responsable.toLowerCase() === (currentUser?.nombre || '').toLowerCase()) || 
+        o.departamento === currentUser?.departamento
+      );
+
+  const obligacionesFiltradas = obligacionesDelUsuario.filter(item => {
     if (filterStatus === 'todas') return true;
     return item.estado === filterStatus;
   });
 
+  const totalVencidas = obligacionesDelUsuario.filter(o => o.estado === 'vencida').length;
+  const totalProximas = obligacionesDelUsuario.filter(o => o.estado === 'proxima').length;
+  const totalCompletadas = obligacionesDelUsuario.filter(o => o.estado === 'completada').length;
+  
   const searchResultsObligaciones = searchQuery ? obligaciones.filter(o => o.titulo.toLowerCase().includes(searchQuery.toLowerCase()) || o.ley.toLowerCase().includes(searchQuery.toLowerCase())) : [];
   const searchResultsDocs = searchQuery ? documentos.filter(d => d.nombreArchivo.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
   // ==========================================
   // ESTADOS LOGIN / REGISTRO
   // ==========================================
-  const [isLogin, setIsLogin] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loginFormData, setLoginFormData] = useState({
     nombre: '',
@@ -458,9 +451,67 @@ export default function App() {
 
   const currentCard = obligaciones[activeCardIndex % obligaciones.length] || obligaciones[0];
 
-  const handleAuthSubmit = (e) => {
+  // ==========================================
+  // FUNCIÓN ÚNICA Y REAL DE AUTENTICACIÓN
+  // ==========================================
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
-    setIsAuthenticated(true);
+    
+    // Validar nombre si está intentando registrarse
+    if (!isLogin && !loginFormData.nombre.trim()) {
+      alert('Por favor ingresa tu nombre completo para registrarte.');
+      return;
+    }
+
+    const endpoint = isLogin ? 'http://localhost:5000/api/login' : 'http://localhost:5000/api/register';
+    
+    const bodyData = isLogin 
+      ? { email: loginFormData.email, password: loginFormData.password }
+      : { 
+          nombre: loginFormData.nombre, 
+          email: loginFormData.email, 
+          password: loginFormData.password, 
+          departamento: loginFormData.departamento 
+        };
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(bodyData)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || 'Ocurrió un error en la autenticación.');
+        return;
+      }
+
+      // Guardar token JWT en localStorage
+      localStorage.setItem('token', data.token);
+      
+      // Cargar datos reales del usuario devueltos por SQLite
+      setCurrentUser({
+        nombre: data.user.nombre,
+        rol: data.user.rol || 'Administrador de Cumplimiento',
+        departamento: data.user.departamento || 'Sistemas y TI',
+        email: data.user.email,
+        telefono: '+52 55 1234 5678',
+        notifEmail: true,
+        notifUrgentes: true,
+        notifResumenSemanal: false
+      });
+
+      // Entrar al panel de la plataforma
+      setIsAuthenticated(true);
+
+    } catch (error) {
+      console.error('Error de conexión:', error);
+      alert('No se pudo conectar con el servidor backend (http://localhost:5000). Revisa que esté encendido.');
+    }
   };
 
   const navItems = [
@@ -920,22 +971,24 @@ export default function App() {
             </div>
 
             {activeTab === 'documentos' ? (
-              <button 
-                onClick={() => setShowUploadModal(true)}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
-              >
-                <Upload className="w-4 h-4" />
-                <span>Cargar Evidencia</span>
-              </button>
-            ) : (
-              <button 
-                onClick={() => setShowNewModal(true)}
-                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Nueva Obligación</span>
-              </button>
-            )}
+  <button 
+    onClick={() => setShowUploadModal(true)}
+    className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
+  >
+    <Upload className="w-4 h-4" />
+    <span>Cargar Evidencia</span>
+  </button>
+) : (
+  currentUser.rol === 'Administrador' && (
+    <button 
+      onClick={() => setShowNewModal(true)}
+      className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
+    >
+      <Plus className="w-4 h-4" />
+      <span>Nueva Obligación</span>
+    </button>
+  )
+)}
           </div>
         </header>
 
@@ -1230,15 +1283,15 @@ export default function App() {
                             </td>
 
                             <td className="p-4 text-right">
-                              <button 
-                                onClick={() => {
-                                  setNewObligacion(prev => ({ ...prev, responsable: item.nombre }));
-                                  setShowNewModal(true);
-                                }}
-                                className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/30 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
-                              >
-                                Asignar Tarea
-                              </button>
+                              {currentUser.rol === 'Administrador' && (
+              <button 
+                onClick={() => setShowNewModal(true)}
+                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nueva Obligación</span>
+              </button>
+            )}
                             </td>
                           </tr>
                         );
