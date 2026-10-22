@@ -513,6 +513,9 @@ useEffect(() => {
 
       // Guardar token JWT en localStorage
       localStorage.setItem('token', data.token);
+      setToken(data.token);
+      setIsAuthenticated(true);
+      setCurrentUser(data.usuario);
       
       // Cargar datos reales del usuario devueltos por SQLite
       setCurrentUser({

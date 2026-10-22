@@ -14,7 +14,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'plurione_secret_key_proyect_2026';
 app.use(express.json());
 app.use(cors());
 
-// Configuración del transportador de correo para notificaciones de bienvenida
+// Configuración del transportador de correo para notificaciones
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -57,14 +57,15 @@ function initDb() {
       if (!err) {
         console.log('Tabla de usuarios lista.');
         
-        // Asignar superpoderes de Administrador a Miguel Romero
-        const adminEmail = 'm.romero@plurione.com';
+        // Configuración segura del Administrador Inicial
+        const adminEmail = process.env.ADMIN_INIT_EMAIL || 'm.romero@plurione.com';
+        const adminPassword = process.env.ADMIN_INIT_PASS || '123456';
+
         db.get(`SELECT * FROM usuarios WHERE email = ?`, [adminEmail], async (err, row) => {
           if (!row) {
-            const hashedPassword = await bcrypt.hash('123456', 10);
+            const hashedPassword = await bcrypt.hash(adminPassword, 10);
             db.run(`INSERT INTO usuarios (nombre, email, password, departamento, rol) VALUES (?, ?, ?, ?, ?)`,
               ['Miguel Romero Morales', adminEmail, hashedPassword, 'Sistemas y TI', 'Administrador']);
-            console.log('Super-Admin configurado: m.romero@plurione.com / 123456');
           } else {
             db.run(`UPDATE usuarios SET rol = 'Administrador' WHERE email = ?`, [adminEmail]);
           }
@@ -72,7 +73,7 @@ function initDb() {
       }
     });
 
-    // Tabla Obligaciones (Requerido por la rúbrica)
+    // Tabla Obligaciones
     db.run(`CREATE TABLE IF NOT EXISTS obligaciones (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       titulo TEXT NOT NULL,
@@ -90,7 +91,7 @@ function initDb() {
 }
 
 // ==========================================
-// MIDDLEWARE DE AUTENTICACIÓN JWT (Rúbrica)
+// MIDDLEWARES DE AUTENTICACIÓN Y ROLES
 // ==========================================
 const verificarToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -108,6 +109,14 @@ const verificarToken = (req, res, next) => {
   }
 };
 
+// Middleware para verificar que sea Administrador
+const esAdmin = (req, res, next) => {
+  if (req.user && (req.user.rol === 'Administrador' || req.user.rol === 'Administrador de Cumplimiento')) {
+    return next();
+  }
+  return res.status(403).json({ error: 'Acceso denegado: Se requieren permisos de Administrador.' });
+};
+
 // ==========================================
 // ENDPOINTS
 // ==========================================
@@ -122,7 +131,9 @@ app.post('/api/register', async (req, res) => {
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const rolAsignado = email.toLowerCase() === 'm.romero@plurione.com' ? 'Administrador' : 'Empleado';
+    const adminEmail = process.env.ADMIN_INIT_EMAIL || 'm.romero@plurione.com';
+    const rolAsignado = email.toLowerCase() === adminEmail.toLowerCase() ? 'Administrador' : 'Empleado';
+    
     const query = `INSERT INTO usuarios (nombre, email, password, departamento, rol) VALUES (?, ?, ?, ?, ?)`;
     
     db.run(query, [nombre, email, hashedPassword, departamento || 'Sistemas y TI', rolAsignado], function(err) {
@@ -180,15 +191,17 @@ app.post('/api/login', (req, res) => {
   });
 });
 
-// 3. OBTENER LISTA DE USUARIOS (Protegido con Token)[cite: 15]
-app.get('/api/users', verificarToken, (req, res) => {
-  db.all(`SELECT id, nombre, email, departamento, rol FROM usuarios`, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
+// 3. OBTENER USUARIOS (Solo para Administradores)
+app.get('/api/usuarios', verificarToken, esAdmin, (req, res) => {
+  db.all(`SELECT id, nombre, email, rol, departamento FROM usuarios`, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Error al obtener usuarios de la base de datos' });
+    }
     res.json(rows);
   });
 });
 
-// 4. OBTENER OBLIGACIONES (Desde SQLite)[cite: 15]
+// 4. OBTENER OBLIGACIONES
 app.get('/api/obligaciones', verificarToken, (req, res) => {
   db.all('SELECT * FROM obligaciones', [], (err, rows) => {
     if (err) return res.status(500).json({ error: 'Error al consultar obligaciones' });
@@ -202,7 +215,7 @@ app.get('/api/obligaciones', verificarToken, (req, res) => {
   });
 });
 
-// 5. CREAR OBLIGACIÓN[cite: 15]
+// 5. CREAR OBLIGACIÓN
 app.post('/api/obligaciones', verificarToken, (req, res) => {
   const { titulo, entidad, ley, departamento, vencimiento, estado, responsable } = req.body;
   if (!titulo || !entidad || !departamento || !vencimiento || !responsable) {
@@ -221,7 +234,7 @@ app.post('/api/obligaciones', verificarToken, (req, res) => {
   });
 });
 
-// 6. ACTUALIZAR OBLIGACIÓN[cite: 15]
+// 6. ACTUALIZAR OBLIGACIÓN (ESTADO / EVIDENCIA)
 app.patch('/api/obligaciones/:id', verificarToken, (req, res) => {
   const { id } = req.params;
   const { estado, evidenciaSubida } = req.body;
@@ -248,26 +261,6 @@ app.patch('/api/obligaciones/:id', verificarToken, (req, res) => {
   db.run(query, params, function(err) {
     if (err) return res.status(500).json({ error: 'Error al actualizar obligación' });
     res.json({ message: 'Obligación actualizada correctamente' });
-  });
-});
-
-// Obtener todos los usuarios de la BD (Solo para Admin)
-app.get('/api/usuarios', verificarToken, (req, res) => {
-  db.all(`SELECT id, nombre, email, rol, departamento FROM usuarios`, [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Error al obtener usuarios de la base de datos' });
-    }
-    res.json(rows);
-  });
-});
-
-// Obtener todos los usuarios de la BD (Solo para Admin)
-app.get('/api/usuarios', verificarToken, (req, res) => {
-  db.all(`SELECT id, nombre, email, rol, departamento FROM usuarios`, [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Error al obtener usuarios de la base de datos' });
-    }
-    res.json(rows);
   });
 });
 
