@@ -42,19 +42,10 @@ export default function App() {
   // ==========================================
   // ESTADO GLOBAL DE AUTENTICACIÓN Y SESIÓN
   // ==========================================
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [activeTab, setActiveTab] = useState('calendario');
-
-  const [currentUser, setCurrentUser] = useState({
-    nombre: 'Miguel Romero Morales',
-    rol: 'Administrador de Cumplimiento',
-    departamento: 'Sistemas y TI',
-    email: 'm.romero@plurione.com',
-    telefono: '+52 55 1234 5678',
-    notifEmail: true,
-    notifUrgentes: true,
-    notifResumenSemanal: false
-  });
+  const [currentUser, setCurrentUser] = useState(null);
 
   // ==========================================
   // BUSCADOR GLOBAL EN VIVO
@@ -87,63 +78,24 @@ export default function App() {
   // ==========================================
   // ESTADO CENTRALIZADO DE OBLIGACIONES
   // ==========================================
-   const [obligaciones, setObligaciones] = useState([
-    {
-      id: 1,
-      titulo: 'Entrega de CFDI de nómina',
-      entidad: 'SAT',
-      ley: 'LISR Art. 99',
-      departamento: 'Finanzas y Contabilidad',
-      vencimiento: '2026-10-23',
-      estado: 'vencida',
-      responsable: 'Carlos Mendoza',
-      evidenciaSubida: false
-    },
-    {
-      id: 2,
-      titulo: 'Dictamen de Seguridad e Higiene',
-      entidad: 'STPS',
-      ley: 'NOM-030-STPS-2009',
-      departamento: 'Recursos Humanos',
-      vencimiento: '2026-10-30',
-      estado: 'proxima',
-      responsable: 'Ana Laura Gómez',
-      evidenciaSubida: false
-    },
-    {
-      id: 3,
-      titulo: 'Declaración mensual de impuestos',
-      entidad: 'SAT',
-      ley: 'Código Fiscal de la Federación',
-      departamento: 'Finanzas y Contabilidad',
-      vencimiento: '2026-10-17',
-      estado: 'completada',
-      responsable: 'Miguel Romero',
-      evidenciaSubida: true
-    },
-    {
-      id: 4,
-      titulo: 'Actualización de Aviso de Privacidad',
-      entidad: 'INAI',
-      ley: 'LFPDPPP Art. 15',
-      departamento: 'Asuntos legales y cumplimiento normativo',
-      vencimiento: '2026-10-20',
-      estado: 'proxima',
-      responsable: 'Diana Romero',
-      evidenciaSubida: false
-    },
-    {
-      id: 5,
-      titulo: 'Reporte de Mantenimiento TI',
-      entidad: 'Interna',
-      ley: 'ISO 27001 A.12',
-      departamento: 'Sistemas y TI',
-      vencimiento: '2026-10-13',
-      estado: 'completada',
-      responsable: 'Miguel Romero',
-      evidenciaSubida: true
+   const [obligaciones, setObligaciones] = useState([]);
+
+// Cargar obligaciones desde el backend usando el token JWT
+useEffect(() => {
+  if (!isAuthenticated || !token) return;
+
+  fetch('http://localhost:5000/api/obligaciones', {
+    headers: {
+      'Authorization': `Bearer ${token}`
     }
-  ]);
+  })
+    .then(res => {
+      if (!res.ok) throw new Error('Error al obtener obligaciones');
+      return res.json();
+    })
+    .then(data => setObligaciones(data))
+    .catch(err => console.error('Error cargando obligaciones:', err));
+}, [isAuthenticated, token]);
 
   // ==========================================
   // OBLIGACIONES DEL USUARIO (Para que el calendario las lea sin broncas)
