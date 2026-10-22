@@ -251,6 +251,26 @@ app.patch('/api/obligaciones/:id', verificarToken, (req, res) => {
   });
 });
 
+// Obtener todos los usuarios de la BD (Solo para Admin)
+app.get('/api/usuarios', verificarToken, (req, res) => {
+  db.all(`SELECT id, nombre, email, rol, departamento FROM usuarios`, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Error al obtener usuarios de la base de datos' });
+    }
+    res.json(rows);
+  });
+});
+
+// Obtener todos los usuarios de la BD (Solo para Admin)
+app.get('/api/usuarios', verificarToken, (req, res) => {
+  db.all(`SELECT id, nombre, email, rol, departamento FROM usuarios`, [], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Error al obtener usuarios de la base de datos' });
+    }
+    res.json(rows);
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor listo en http://localhost:${PORT}`);
 });

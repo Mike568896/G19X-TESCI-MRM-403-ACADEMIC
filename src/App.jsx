@@ -102,14 +102,19 @@ useEffect(() => {
   // ==========================================
   const getObligacionesDelUsuario = () => {
     if (!currentUser) return [];
+
+    // Si es Administrador o equivalente, ve todas las obligaciones
     if (currentUser.rol === 'Administrador' || currentUser.rol === 'Administrador de Cumplimiento') {
       return obligaciones || [];
     }
+
+    // Si es un colaborador normal, SOLO ve las tareas donde su nombre sea el responsable
     return (obligaciones || []).filter(o => {
       if (!o || !o.responsable) return false;
-      const respLower = o.responsable.trim().toLowerCase();
-      const userLower = (currentUser.nombre || '').trim().toLowerCase();
-      return respLower.includes(userLower) || userLower.includes(respLower) || o.departamento === currentUser.departamento;
+      const resp = o.responsable.trim().toLowerCase();
+      const nombreUser = currentUser.nombre.trim().toLowerCase();
+      
+      return resp.includes(nombreUser) || nombreUser.includes(resp);
     });
   };
 
@@ -285,32 +290,40 @@ useEffect(() => {
   const [personal, setPersonal] = useState([]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetch('http://localhost:5000/api/users')
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            const personalFormateado = data.map(u => ({
-              id: u.id,
-              nombre: u.nombre,
-              email: u.email,
-              departamento: u.departamento || 'Sistemas y TI',
-              rol: u.rol || 'Empleado',
-              completadas: u.rol === 'Administrador' ? 2 : 0,
-              totales: u.rol === 'Administrador' ? 2 : 1,
-              estado: u.rol === 'Administrador' ? 'Excelente' : 'En Proceso'
-            }));
-            setPersonal(personalFormateado);
-          }
-        })
-        .catch(err => console.error('Error al cargar personal:', err));
-    }
-  }, [isAuthenticated]);
+    if (!isAuthenticated || !token) return;
+
+    fetch('http://localhost:5000/api/usuarios', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Error al obtener usuarios');
+        return res.json();
+      })
+      .then(data => {
+        // Adaptamos los usuarios de la BD al formato que espera la tabla de personal
+        const personalFormateado = data.map(u => ({
+          id: u.id,
+          nombre: u.nombre,
+          email: u.email,
+          rol: u.rol,
+          departamento: u.departamento || 'General',
+          completadas: 0,
+          totales: 5,
+          estado: 'Activo'
+        }));
+        setPersonal(personalFormateado);
+      })
+      .catch(err => console.error('Error al cargar personal:', err));
+  }, [isAuthenticated, token]);
 
   const [filterDepto, setFilterDepto] = useState('Todos');
-  const personalFiltrado = personal.filter(p => {
+  
+  // Usamos 'personal' en lugar de 'usuariosRegistrados' para evitar errores si aún no se inicializa
+  const personalFiltrado = (personal || []).filter(p => {
     if (filterDepto === 'Todos') return true;
-    return p.departamento === filterDepto;
+    return (p.departamento || 'General') === filterDepto;
   });
 
   // ==========================================
@@ -407,6 +420,26 @@ useEffect(() => {
   const searchResultsObligaciones = searchQuery ? obligaciones.filter(o => o.titulo.toLowerCase().includes(searchQuery.toLowerCase()) || o.ley.toLowerCase().includes(searchQuery.toLowerCase())) : [];
   const searchResultsDocs = searchQuery ? documentos.filter(d => d.nombreArchivo.toLowerCase().includes(searchQuery.toLowerCase())) : [];
 
+  // ESTADO Y CARGA DE USUARIOS DESDE BACKEND (Para Panel Admin)
+  const [usuariosRegistrados, setUsuariosRegistrados] = useState([]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+    if (currentUser?.rol !== 'Administrador' && currentUser?.rol !== 'Administrador de Cumplimiento') return;
+
+    fetch('http://localhost:5000/api/usuarios', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Error al obtener usuarios');
+        return res.json();
+      })
+      .then(data => setUsuariosRegistrados(data))
+      .catch(err => console.error('Error cargando usuarios:', err));
+  }, [isAuthenticated, token, currentUser]);
+
   // ==========================================
   // ESTADOS LOGIN / REGISTRO
   // ==========================================
@@ -436,6 +469,8 @@ useEffect(() => {
   }, [obligaciones.length, isAuthenticated]);
 
   const currentCard = obligaciones[activeCardIndex % obligaciones.length] || obligaciones[0];
+
+  
 
   // ==========================================
   // FUNCIÓN ÚNICA Y REAL DE AUTENTICACIÓN
