@@ -232,37 +232,56 @@ useEffect(() => {
     }
   };
 
-  const handleUploadDoc = (e) => {
+  const handleUploadDoc = async (e) => {
     e.preventDefault();
     if (!selectedFile) return;
 
     const extension = selectedFile.name.split('.').pop().toUpperCase();
     const obligacionEncontrada = obligaciones.find(o => o.titulo === newDoc.obligacionAsociada);
 
-    const nuevoDocumento = {
-      id: Date.now(),
-      nombreArchivo: selectedFile.name,
-      tipo: extension || 'DOCUMENTO',
-      tamaño: `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`,
-      obligacionAsociada: newDoc.obligacionAsociada,
-      entidad: obligacionEncontrada ? obligacionEncontrada.entidad : 'SAT',
-      subidoPor: currentUser.nombre,
-      fechaCarga: new Date().toISOString().split('T')[0]
-    };
-
-    setDocumentos([nuevoDocumento, ...documentos]);
-    
     if (obligacionEncontrada) {
-      setObligaciones(prev => prev.map(o => {
-        if (o.id === obligacionEncontrada.id) {
-          return { ...o, estado: 'completada', evidenciaSubida: true };
-        }
-        return o;
-      }));
-    }
+      try {
+        // Hacemos la petición PATCH a la base de datos para registrar la evidencia
+        const response = await fetch(`http://localhost:5000/api/obligaciones/${obligacionEncontrada.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ evidenciaSubida: true, estado: 'completada' })
+        });
 
-    setSelectedFile(null);
-    setShowUploadModal(false);
+        if (!response.ok) {
+          throw new Error('Error al registrar la evidencia en el servidor');
+        }
+
+        const nuevoDocumento = {
+          id: Date.now(),
+          nombreArchivo: selectedFile.name,
+          tipo: extension || 'DOCUMENTO',
+          tamanio: `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`,
+          obligacionAsociada: newDoc.obligacionAsociada,
+          entidad: obligacionEncontrada ? obligacionEncontrada.entidad : 'SAT',
+          subidoPor: currentUser.nombre,
+          fechaCarga: new Date().toISOString().split('T')[0]
+        };
+
+        setDocumentos([nuevoDocumento, ...documentos]);
+
+        setObligaciones(prev => prev.map(o => {
+          if (o.id === obligacionEncontrada.id) {
+            return { ...o, estado: 'completada', evidenciaSubida: true };
+          }
+          return o;
+        }));
+
+        setSelectedFile(null);
+        setShowUploadModal(false);
+      } catch (error) {
+        console.error('Error registrando evidencia:', error);
+        alert('No se pudo registrar la evidencia en la base de datos.');
+      }
+    }
   };
 
   const downloadDummyFile = (doc) => {
@@ -400,21 +419,30 @@ useEffect(() => {
     }
   };
 
-  const handleToggleEstado = (id) => {
-    setObligaciones(prevObligaciones => 
-      prevObligaciones.map(item => {
-        if (item.id === id) {
-          if (item.estado === 'completada') {
-            const debioVencer = isDatePast(item.vencimiento);
-            const estadoRestaurado = debioVencer ? 'vencida' : 'proxima';
-            return { ...item, estado: estadoRestaurado, evidenciaSubida: false };
-          } else {
-            return { ...item, estado: 'completada', evidenciaSubida: true };
-          }
-        }
-        return item;
-      })
-    );
+    const handleToggleEstado = async (id, estadoActual) => {
+    const nuevoEstado = estadoActual === 'completada' ? 'proxima' : 'completada';
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/obligaciones/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ estado: nuevoEstado })
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar el estado en el servidor');
+      }
+
+      setObligaciones(prev =>
+        prev.map(item => item.id === id ? { ...item, estado: nuevoEstado } : item)
+      );
+    } catch (error) {
+      console.error('Error actualizando estado:', error);
+      alert('No se pudo guardar el cambio de estado en la base de datos.');
+    }
   };
 
   const searchResultsObligaciones = searchQuery ? obligaciones.filter(o => o.titulo.toLowerCase().includes(searchQuery.toLowerCase()) || o.ley.toLowerCase().includes(searchQuery.toLowerCase())) : [];
