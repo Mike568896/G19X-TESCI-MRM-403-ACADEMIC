@@ -337,29 +337,54 @@ useEffect(() => {
     responsable: ''
   });
 
-  const handleAddObligacion = (e) => {
+  const handleAddObligacion = async (e) => {
     e.preventDefault();
     if (!newObligacion.titulo || !newObligacion.vencimiento) return;
 
-    const yaVencio = isDatePast(newObligacion.vencimiento);
-
-    const nuevaObj = {
-      id: Date.now(),
-      ...newObligacion,
-      estado: yaVencio ? 'vencida' : 'proxima',
+    // Aseguramos valores por defecto por si el backend los exige y no son del SAT
+    const obligacionAEnviar = {
+      titulo: newObligacion.titulo,
+      vencimiento: newObligacion.vencimiento,
+      entidad: newObligacion.entidad || 'Interna', // Si no pones entidad, queda como Interna
+      ley: newObligacion.ley || 'Reglamento Interno',
+      departamento: newObligacion.departamento || 'General',
+      responsable: newObligacion.responsable || currentUser?.nombre || 'Administrador',
+      estado: 'proxima',
       evidenciaSubida: false
     };
 
-    setObligaciones(prev => [nuevaObj, ...prev]);
-    setNewObligacion({
-      titulo: '',
-      entidad: 'SAT',
-      ley: '',
-      departamento: 'Asuntos legales y cumplimiento normativo',
-      vencimiento: '',
-      responsable: ''
-    });
-    setShowNewModal(false);
+    try {
+      const response = await fetch('http://localhost:5000/api/obligaciones', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(obligacionAEnviar)
+      });
+
+      if (!response.ok) throw new Error('Error al guardar obligación');
+
+      const obligacionGuardada = await response.json();
+
+      // Guardamos la respuesta del backend en el estado
+      setObligaciones(prev => [...prev, obligacionGuardada]);
+
+      // Limpiamos el formulario
+      setNewObligacion({
+        titulo: '',
+        entidad: 'Interna',
+        ley: '',
+        departamento: 'General',
+        vencimiento: '',
+        responsable: ''
+      });
+      setShowNewModal(false);
+
+    } catch (error) {
+      console.error('Error al agregar obligación:', error);
+      alert('No se pudo guardar la obligación en la base de datos.');
+    }
   };
 
   const handleToggleEstado = (id) => {
