@@ -1213,7 +1213,7 @@ useEffect(() => {
                             <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-800/60">
                               <span>Resp: <span className="text-slate-300">{item.responsable}</span></span>
                               <button 
-                                onClick={() => handleToggleEstado(item.id)}
+                                onClick={() => handleToggleEstado(item.id, item.estado)}
                                 className="text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
                               >
                                 {item.estado === 'completada' ? 'Revisar' : 'Marcar Auditada'}
