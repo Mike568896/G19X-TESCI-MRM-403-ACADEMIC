@@ -14,15 +14,21 @@ Pluri Uno es una plataforma web integral diseñada para la gestión, seguimiento
    ```bash
    git clone [https://github.com/Mike568896/G19X-TESCI-MRM-403-ACADEMICO.git](https://github.com/Mike568896/G19X-TESCI-MRM-403-ACADEMICO.git)
 
+   ## ⚙️ Requisitos e Instalación
+
 1.- Instalar Dependencias:
 npm install
 
 2.- Configurar variables de entorno:
 Copia el archivo de ejemplo para crear tu .env:
 cp .env.example .env
+(Asegúrate de configurar tus variables, incluyendo ADMIN_INIT_EMAIL y ADMIN_INIT_PASS para definir el usuario administrador inicial).
 
 3.- Ejecutar el proyecto:
 
 Backend: npm run server (Corre en http://localhost:5000)
 
 Frontend: npm run dev (Corre en http://localhost:5173)
+
+Primer acceso:
+Entrar a la aplicación usando el correo que definiste en ADMIN_INIT_EMAIL y la contraseña asignada en ADMIN_INIT_PASS.
