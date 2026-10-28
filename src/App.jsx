@@ -548,7 +548,7 @@ useEffect(() => {
       // Cargar datos reales del usuario devueltos por SQLite
       setCurrentUser({
         nombre: data.user.nombre,
-        rol: data.user.rol || 'Administrador de Cumplimiento',
+        rol: data.user.rol || '',
         departamento: data.user.departamento || 'Sistemas y TI',
         email: data.user.email,
         telefono: '+52 55 1234 5678',
@@ -1441,7 +1441,7 @@ useEffect(() => {
 
                           <td className="p-4 text-right">
                             <button 
-                              onClick={() => handleToggleEstado(item.id)}
+                              onClick={() => handleToggleEstado(item.id, item.estado)}
                               className={`px-3 py-1.5 rounded-xl font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer ml-auto ${
                                 item.estado === 'completada' 
                                   ? 'bg-slate-800 text-slate-400 hover:text-white' 
