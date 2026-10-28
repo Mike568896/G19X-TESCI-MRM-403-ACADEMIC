@@ -543,12 +543,11 @@ useEffect(() => {
       localStorage.setItem('token', data.token);
       setToken(data.token);
       setIsAuthenticated(true);
-      setCurrentUser(data.usuario);
       
       // Cargar datos reales del usuario devueltos por SQLite
       setCurrentUser({
         nombre: data.user.nombre,
-        rol: data.user.rol || '',
+        rol: data.user.rol || 'Empleado',
         departamento: data.user.departamento || 'Sistemas y TI',
         email: data.user.email,
         telefono: '+52 55 1234 5678',
