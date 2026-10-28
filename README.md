@@ -32,3 +32,8 @@ Frontend: npm run dev (Corre en http://localhost:5173)
 
 Primer acceso:
 Entrar a la aplicación usando el correo que definiste en ADMIN_INIT_EMAIL y la contraseña asignada en ADMIN_INIT_PASS.
+
+## 📄 Documentación del Proyecto
+Para más detalles sobre el diseño y alcance del sistema, puedes consultar:
+- [Documento de Requisitos (PRD)](docs/PRD.md)
+- [Producto Mínimo Viable (MVP)](docs/MVP.md)
