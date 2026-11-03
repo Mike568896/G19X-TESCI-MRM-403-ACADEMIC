@@ -11,8 +11,8 @@ Pluri Uno es una plataforma web integral diseñada para la gestión, seguimiento
 ## Requisitos e Instalación
 
 1. **Clonar el repositorio:**
-   bash
-git clone https://github.com/Mike568896/G19X-TESCI-MRM-403-ACADEMIC.git
+   ```bash
+   git clone [https://github.com/Mike568896/G19X-TESCI-MRM-403-ACADEMIC.git](https://github.com/Mike568896/G19X-TESCI-MRM-403-ACADEMIC.git)
 
 2. **Instalar Dependencias:**
 npm install
