@@ -146,7 +146,7 @@ app.post('/api/register', async (req, res) => {
       
       sendWelcomeEmail(email, nombre);
 
-      const token = jwt.sign({ id: this.lastID, email, rol: rolAsignado }, JWT_SECRET, { expiresIn: '8h' });
+      const token = jwt.sign({ id: this.lastID, email, nombre, rol: rolAsignado }, JWT_SECRET, { expiresIn: '8h' });
       res.status(201).json({
         message: 'Usuario registrado exitosamente',
         token,
@@ -175,7 +175,7 @@ app.post('/api/login', (req, res) => {
       return res.status(401).json({ error: 'Correo o contraseña incorrectos.' });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email, rol: user.rol }, JWT_SECRET, { expiresIn: '8h' });
+    const token = jwt.sign({ id: user.id, email: user.email, nombre: user.nombre, rol: user.rol }, JWT_SECRET, { expiresIn: '8h' });
 
     res.json({
       message: 'Inicio de sesión exitoso',
@@ -203,14 +203,23 @@ app.get('/api/usuarios', verificarToken, esAdmin, (req, res) => {
 
 // 4. OBTENER OBLIGACIONES
 app.get('/api/obligaciones', verificarToken, (req, res) => {
-  db.all('SELECT * FROM obligaciones', [], (err, rows) => {
+  let query = `SELECT * FROM obligaciones`;
+  let params = [];
+
+  // Si es empleado, filtramos estrictamente por su nombre o responsable asignado
+  if (req.user.rol === 'Empleado') {
+    query += ` WHERE responsable = ?`;
+    params.push(req.user.nombre);
+  }
+
+  db.all(query, params, (err, rows) => {
     if (err) return res.status(500).json({ error: 'Error al consultar obligaciones' });
     
     const obligaciones = rows.map(o => ({
       ...o,
       evidenciaSubida: Boolean(o.evidenciaSubida)
     }));
-    
+
     res.json(obligaciones);
   });
 });
@@ -260,6 +269,12 @@ app.patch('/api/obligaciones/:id', verificarToken, (req, res) => {
 
   db.run(query, params, function(err) {
     if (err) return res.status(500).json({ error: 'Error al actualizar obligación' });
+    
+    // Si no encontró el ID en la base de datos, devolvemos 404
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Obligación no encontrada' });
+    }
+
     res.json({ message: 'Obligación actualizada correctamente' });
   });
 });
