@@ -370,80 +370,83 @@ useEffect(() => {
   });
 
   const handleAddObligacion = async (e) => {
-    e.preventDefault();
-    if (!newObligacion.titulo || !newObligacion.vencimiento) return;
+  e.preventDefault();
+  if (!newObligacion.titulo || !newObligacion.vencimiento) return;
 
-    // Aseguramos valores por defecto por si el backend los exige y no son del SAT
-    const obligacionAEnviar = {
-      titulo: newObligacion.titulo,
-      vencimiento: newObligacion.vencimiento,
-      entidad: newObligacion.entidad || 'Interna', // Si no pones entidad, queda como Interna
-      ley: newObligacion.ley || 'Reglamento Interno',
-      departamento: newObligacion.departamento || 'General',
-      responsable: newObligacion.responsable || currentUser?.nombre || 'Administrador',
-      estado: 'proxima',
-      evidenciaSubida: false
-    };
-
-    try {
-      const response = await fetch('http://localhost:5000/api/obligaciones', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(obligacionAEnviar)
-      });
-
-      if (!response.ok) throw new Error('Error al guardar obligación');
-
-      const obligacionGuardada = await response.json();
-
-      // Guardamos la respuesta del backend en el estado
-      setObligaciones(prev => [...prev, obligacionGuardada]);
-
-      // Limpiamos el formulario
-      setNewObligacion({
-        titulo: '',
-        entidad: 'Interna',
-        ley: '',
-        departamento: 'General',
-        vencimiento: '',
-        responsable: ''
-      });
-      setShowNewModal(false);
-
-    } catch (error) {
-      console.error('Error al agregar obligación:', error);
-      alert('No se pudo guardar la obligación en la base de datos.');
-    }
+  const obligacionAEnviar = {
+    titulo: newObligacion.titulo,
+    entidad: newObligacion.entidad || 'SAT',
+    ley: newObligacion.ley || 'Reglamento Interno',
+    departamento: newObligacion.departamento || 'Asuntos legales y cumplimiento normativo',
+    vencimiento: newObligacion.vencimiento,
+    responsable: newObligacion.responsable || currentUser?.nombre || 'Administrador',
+    estado: 'proxima',
+    evidenciaSubida: false
   };
 
-    const handleToggleEstado = async (id, estadoActual) => {
-    const nuevoEstado = estadoActual === 'completada' ? 'proxima' : 'completada';
+  try {
+    const response = await fetch('http://localhost:5000/api/obligaciones', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(obligacionAEnviar)
+    });
 
-    try {
-      const response = await fetch(`http://localhost:5000/api/obligaciones/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ estado: nuevoEstado })
-      });
+    if (!response.ok) throw new Error('Error al guardar obligación');
 
-      if (!response.ok) {
-        throw new Error('Error al actualizar el estado en el servidor');
-      }
+    const obligacionGuardada = await response.json();
+    setObligaciones(prev => [...prev, obligacionGuardada]);
+    
+    // Limpiamos y cerramos modal
+    setNewObligacion({
+      titulo: '',
+      entidad: 'SAT',
+      ley: '',
+      departamento: 'Asuntos legales y cumplimiento normativo',
+      vencimiento: '',
+      responsable: ''
+    });
+    setShowNewModal(false);
 
-      setObligaciones(prev =>
-        prev.map(item => item.id === id ? { ...item, estado: nuevoEstado } : item)
-      );
-    } catch (error) {
-      console.error('Error actualizando estado:', error);
-      alert('No se pudo guardar el cambio de estado en la base de datos.');
+  } catch (error) {
+    console.error('Error al agregar obligación:', error);
+    alert('No se pudo guardar la obligación en la base de datos.');
+  }
+};
+
+const handleToggleEstado = async (id, estadoActual) => {
+  const nuevoEstado = estadoActual === 'completada' ? 'proxima' : 'completada';
+
+  // Actualizamos la interfaz al instante
+  setObligaciones(prev => 
+    prev.map(item => item.id === id ? { ...item, estado: nuevoEstado } : item)
+  );
+
+  try {
+    const response = await fetch(`http://localhost:5000/api/obligaciones/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ estado: nuevoEstado })
+    });
+
+    if (!response.ok) {
+      throw new Error('Error al actualizar el estado en el servidor');
     }
-  };
+  } catch (error) {
+    console.error('Error actualizando estado:', error);
+    alert('No se pudo guardar el cambio de estado en la base de datos.');
+    
+    // Si falla, revertimos el cambio local
+    setObligaciones(prev => 
+      prev.map(item => item.id === id ? { ...item, estado: estadoActual } : item)
+    );
+  }
+};
 
   const searchResultsObligaciones = searchQuery ? obligaciones.filter(o => o.titulo.toLowerCase().includes(searchQuery.toLowerCase()) || o.ley.toLowerCase().includes(searchQuery.toLowerCase())) : [];
   const searchResultsDocs = searchQuery ? documentos.filter(d => d.nombreArchivo.toLowerCase().includes(searchQuery.toLowerCase())) : [];
@@ -1336,7 +1339,10 @@ useEffect(() => {
                             <td className="p-4 text-right">
                               {currentUser.rol === 'Administrador' && (
               <button 
-                onClick={() => setShowNewModal(true)}
+                onClick={() => {
+  setNewObligacion(prev => ({ ...prev, responsable: item.nombre }));
+  setShowNewModal(true);
+}}
                 className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -1809,26 +1815,90 @@ useEffect(() => {
       )}
 
       {/* MODAL: NUEVA OBLIGACIÓN */}
-      {showNewModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0d1322] border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
-            <button onClick={() => setShowNewModal(false)} className="absolute right-4 top-4 text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer">
-              <X className="w-5 h-5" />
-            </button>
-            <div className="mb-5">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2"><Plus className="w-5 h-5 text-blue-400" />Registrar Nueva Obligación Legal</h3>
-            </div>
-            <form onSubmit={handleAddObligacion} className="space-y-4">
-              <input type="text" required placeholder="Ej. Reporte Mensual de Finanzas" value={newObligacion.titulo} onChange={(e) => setNewObligacion({ ...newObligacion, titulo: e.target.value })} className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white" />
-              <input type="date" required value={newObligacion.vencimiento} onChange={(e) => setNewObligacion({ ...newObligacion, vencimiento: e.target.value })} className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white" />
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
-                <button type="button" onClick={() => setShowNewModal(false)} className="px-4 py-2 text-xs text-slate-400">Cancelar</button>
-                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs">Guardar Obligación</button>
-              </div>
-            </form>
-          </div>
+{showNewModal && (
+  <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="bg-[#0d1322] border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+      <button onClick={() => setShowNewModal(false)} className="absolute right-4 top-4 text-slate-500 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer">
+        <X className="w-5 h-5" />
+      </button>
+
+      <div className="mb-5">
+        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+          <Plus className="w-5 h-5 text-blue-400" /> Registrar Nueva Obligación
+        </h3>
+      </div>
+
+      <form onSubmit={handleAddObligacion} className="space-y-4">
+        <div>
+          <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Título de la Obligación</label>
+          <input 
+            type="text" 
+            required 
+            placeholder="Ej. Reporte Mensual de Finanzas" 
+            value={newObligacion.titulo} 
+            onChange={(e) => setNewObligacion({ ...newObligacion, titulo: e.target.value })}
+            className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+          />
         </div>
-      )}
+
+        {/* Selector de Entidad / Institución */}
+        <div>
+          <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Entidad / Institución</label>
+          <select 
+            value={newObligacion.entidad}
+            onChange={(e) => setNewObligacion({ ...newObligacion, entidad: e.target.value })}
+            className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+          >
+            <option value="SAT">SAT (Servicio de Administración Tributaria)</option>
+            <option value="IMSS">IMSS (Seguro Social)</option>
+            <option value="STPS">STPS (Trabajo y Previsión Social)</option>
+            <option value="Profeco">Profeco</option>
+            <option value="Interna">Regulatoria / Interna</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Fecha de Vencimiento</label>
+          <input 
+            type="date" 
+            required 
+            value={newObligacion.vencimiento} 
+            onChange={(e) => setNewObligacion({ ...newObligacion, vencimiento: e.target.value })}
+            className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+          />
+        </div>
+
+        {/* Selector dinámico de Responsable */}
+        {newObligacion.responsable ? (
+          <div className="p-3 bg-[#121929] border border-slate-800 rounded-xl text-xs text-slate-300 flex items-center justify-between">
+            <span>Asignando a: <strong className="text-white">{newObligacion.responsable}</strong></span>
+            <span className="text-[10px] text-blue-400 cursor-pointer hover:underline" onClick={() => setNewObligacion(prev => ({ ...prev, responsable: '' }))}>Cambiar</span>
+          </div>
+        ) : (
+          <div>
+            <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Responsable / Área</label>
+            <select 
+              value={newObligacion.responsable}
+              onChange={(e) => setNewObligacion({ ...newObligacion, responsable: e.target.value })}
+              className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+              required
+            >
+              <option value="">Selecciona un colaborador...</option>
+              {usuariosRegistrados.map(u => (
+                <option key={u.id} value={u.nombre}>{u.nombre} ({u.departamento})</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+          <button type="button" onClick={() => setShowNewModal(false)} className="px-4 py-2 text-xs text-slate-400 hover:text-white cursor-pointer">Cancelar</button>
+          <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow-lg shadow-blue-600/20 cursor-pointer">Guardar Obligación</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  )}
 
     </div>
   );
