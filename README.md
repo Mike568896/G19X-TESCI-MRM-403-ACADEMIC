@@ -2,17 +2,17 @@
 
 Pluri Uno es una plataforma web integral diseñada para la gestión, seguimiento y auditoría de obligaciones normativas, legales y operativas dentro de una organización.
 
-## 🚀 Arquitectura y Tecnologías
+## Arquitectura y Tecnologías
 - **Frontend:** React + Vite, Tailwind CSS, Lucide Icons.
 - **Backend:** Node.js, Express.
 - **Base de Datos:** SQLite (`database.sqlite`).
 - **Autenticación:** JSON Web Tokens (JWT) con encriptación de contraseñas (`bcrypt`).
 
-## 🛠️ Requisitos e Instalación
+## Requisitos e Instalación
 
 1. **Clonar el repositorio:**
    bash
-git clone https://github.com/Mike568896/G19X-TESCI-MRM-403-ACADEMICO.git
+git clone https://github.com/Mike568896/G19X-TESCI-MRM-403-ACADEMIC.git
 
 2. **Instalar Dependencias:**
 npm install
