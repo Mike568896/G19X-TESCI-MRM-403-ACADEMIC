@@ -101,22 +101,24 @@ useEffect(() => {
   // OBLIGACIONES DEL USUARIO (Para que el calendario las lea sin broncas)
   // ==========================================
   const getObligacionesDelUsuario = () => {
-    if (!currentUser) return [];
-
-    // Si es Administrador o equivalente, ve todas las obligaciones
-    if (currentUser.rol === 'Administrador' || currentUser.rol === 'Administrador de Cumplimiento') {
-      return obligaciones || [];
+  // 1. Validamos y transformamos automáticamente las vencidas por fecha
+  const obligacionesConVencimiento = (obligaciones || []).map(o => {
+    if (o.estado !== 'completada' && o.vencimiento) {
+      const hoy = new Date().toISOString().split('T')[0];
+      if (o.vencimiento < hoy) {
+        return { ...o, estado: 'vencida' };
+      }
     }
+    return o;
+  });
 
-    // Si es un colaborador normal, SOLO ve las tareas donde su nombre sea el responsable
-    return (obligaciones || []).filter(o => {
-      if (!o || !o.responsable) return false;
-      const resp = o.responsable.trim().toLowerCase();
-      const nombreUser = currentUser.nombre.trim().toLowerCase();
-      
-      return resp.includes(nombreUser) || nombreUser.includes(resp);
-    });
-  };
+  // 2. Filtramos según el rol del usuario actual de forma flexible
+  return obligacionesConVencimiento.filter(o => {
+    if (currentUser?.rol === 'Administrador') return true;
+    if (!o || !o.responsable) return false;
+    return o.responsable.trim().toLowerCase() === currentUser?.nombre?.trim().toLowerCase();
+  });
+};
 
   const obligacionesDelUsuario = getObligacionesDelUsuario();
 
@@ -356,9 +358,9 @@ useEffect(() => {
     return item.estado === filterStatus;
   });
 
-  const totalVencidas = obligacionesDelUsuario.filter(o => o.estado === 'vencida').length;
-  const totalProximas = obligacionesDelUsuario.filter(o => o.estado === 'proxima').length;
-  const totalCompletadas = obligacionesDelUsuario.filter(o => o.estado === 'completada').length;
+const totalVencidas = obligacionesDelUsuario.filter(o => o.estado === 'vencida').length;
+const totalProximas = obligacionesDelUsuario.filter(o => o.estado === 'proxima').length;
+const totalCompletadas = obligacionesDelUsuario.filter(o => o.estado === 'completada').length;
   
   const [newObligacion, setNewObligacion] = useState({
     titulo: '',
@@ -1282,10 +1284,20 @@ const handleToggleEstado = async (id, estadoActual) => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60">
-                      {personalFiltrado.map((item) => {
-                        const porcentaje = Math.round((item.completadas / item.totales) * 100);
-                        return (
-                          <tr key={item.id} className="hover:bg-[#131b2e]/50 transition-colors">
+    {personalFiltrado.map((item) => {
+    // Búsqueda flexible para que encuentre al responsable sin importar mayúsculas o espacios
+    const obsDelUsuario = obligaciones.filter(o => 
+      o.responsable && item.nombre && 
+      o.responsable.trim().toLowerCase() === item.nombre.trim().toLowerCase()
+    );
+    
+    const totalTotales = obsDelUsuario.length;
+    const totalCompletadas = obsDelUsuario.filter(o => o.estado === 'completada').length;
+    const porcentaje = totalTotales > 0 ? Math.round((totalCompletadas / totalTotales) * 100) : 0;
+
+    return (
+      <tr key={item.id} className="hover:bg-[#131b2e]/50 transition-colors">
+        
                             <td className="p-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs shrink-0">
@@ -1303,20 +1315,15 @@ const handleToggleEstado = async (id, estadoActual) => {
                               <div className="text-[10px] text-slate-500">{item.rol}</div>
                             </td>
 
-                            <td className="p-4 w-48">
-                              <div className="flex justify-between items-center text-[10px] mb-1">
-                                <span className="text-slate-400">{item.completadas} de {item.totales} auditadas</span>
-                                <span className="font-bold text-white">{porcentaje}%</span>
-                              </div>
-                              <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full transition-all duration-500 ${
-                                    porcentaje === 100 ? 'bg-emerald-400' : 'bg-amber-400'
-                                  }`} 
-                                  style={{ width: `${porcentaje}%` }}
-                                ></div>
-                              </div>
-                            </td>
+                            <td className="p-4">
+          <div className="text-xs text-slate-300 mb-1">
+            <span className="font-bold text-white">{totalCompletadas} de {totalTotales}</span> auditadas
+          </div>
+          <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+            <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${porcentaje}%` }}></div>
+          </div>
+          <span className="text-[10px] text-slate-400 mt-1 block">{porcentaje}%</span>
+        </td>
 
                             <td className="p-4">
                               {item.estado === 'Excelente' && (
