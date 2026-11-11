@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
+
 import express from 'express';
 import sqlite3 from 'sqlite3';
 import cors from 'cors';
@@ -7,20 +8,29 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 
+// Validación estricta requerida por la plataforma
+const requiredEnv = ['JWT_SECRET', 'ADMIN_INIT_EMAIL', 'ADMIN_INIT_PASS', 'SMTP_USER', 'SMTP_PASS'];
+const missingEnv = requiredEnv.filter((env) => !process.env[env]);
+
+if (missingEnv.length > 0) {
+    console.error(`Faltan variables requeridas en el .env: ${missingEnv.join(', ')}. Copia .env.example a .env y configura los valores.`);
+    process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'plurione_secret_key_proyect_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 app.use(express.json());
 app.use(cors());
 
 // Configuración del transportador de correo para notificaciones
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.SMTP_USER || 'notificaciones.plurione@gmail.com',
-    pass: process.env.SMTP_PASS || 'app_password_here'
-  }
+    service: 'gmail',
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+    }
 });
 
 // Función para enviar correo de bienvenida
@@ -58,8 +68,8 @@ function initDb() {
         console.log('Tabla de usuarios lista.');
         
         // Configuración segura del Administrador Inicial
-        const adminEmail = process.env.ADMIN_INIT_EMAIL || 'm.romero@plurione.com';
-        const adminPassword = process.env.ADMIN_INIT_PASS || '123456';
+        const adminEmail = process.env.ADMIN_INIT_EMAIL;
+        const adminPassword = process.env.ADMIN_INIT_PASS;
 
         db.get(`SELECT * FROM usuarios WHERE email = ?`, [adminEmail], async (err, row) => {
           if (!row) {
@@ -131,7 +141,7 @@ app.post('/api/register', async (req, res) => {
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const adminEmail = process.env.ADMIN_INIT_EMAIL || 'm.romero@plurione.com';
+    const adminEmail = process.env.ADMIN_INIT_EMAIL;
     const rolAsignado = email.toLowerCase() === adminEmail.toLowerCase() ? 'Administrador' : 'Empleado';
     
     const query = `INSERT INTO usuarios (nombre, email, password, departamento, rol) VALUES (?, ?, ?, ?, ?)`;
