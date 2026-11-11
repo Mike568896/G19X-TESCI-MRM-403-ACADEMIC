@@ -29,20 +29,29 @@ cp .env.example .env
 (Asegúrate de configurar tus variables, incluyendo ADMIN_INIT_EMAIL y ADMIN_INIT_PASS para definir el usuario administrador inicial).
 
 4. **Ejecutar el proyecto:**
-Abre dos terminales distintas en la raíz del repositorio. En la primera terminal corre el servidor:
+Abre dos terminales distintas en la raíz del repositorio. En la primera terminal corre el servidor
 Backend: 
 ```bash
-npm run server (Corre en http://localhost:5000)
+npm run server
 ```
 
-En la segunda terminal corre el cliente:
+En la segunda terminal corre el cliente
 Frontend: 
 ```bash
-npm run dev (Corre en http://localhost:5173)
+npm run dev
 ```
 
 Primer acceso:
 Entrar a la aplicación usando el correo que definiste en ADMIN_INIT_EMAIL y la contraseña asignada en ADMIN_INIT_PASS.
+
+## Cuentas de Prueba y Seeding
+
+Para poblar la base de datos con usuarios de prueba y obligaciones iniciales, ejecuta el siguiente comando en la carpeta del backend:
+
+```bash
+cd plurione-backend
+npm run seed
+```
 
 ## 📄 Documentación del Proyecto
 Para más detalles sobre el diseño y alcance del sistema, puedes consultar:
