@@ -1771,8 +1771,8 @@ const handleToggleEstado = async (id, estadoActual) => {
                   className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-blue-500 cursor-pointer"
                 >
                   {obligaciones.map((o) => (
-                    <option key={o.id} value={o.titulo}>{o.titulo} ({o.entidad})</option>
-                  ))}
+              <option key={o.id} value={o.titulo}>{o.titulo} ({o.entidad})</option>
+            ))}
                 </select>
               </div>
 

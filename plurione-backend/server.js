@@ -245,38 +245,54 @@ app.post('/api/obligaciones', verificarToken, (req, res) => {
 
 // 6. ACTUALIZAR OBLIGACIÓN (ESTADO / EVIDENCIA)
 app.patch('/api/obligaciones/:id', verificarToken, (req, res) => {
-  const { id } = req.params;
-  const { estado, evidenciaSubida } = req.body;
+    const { id } = req.params;
+    const { estado, evidenciaSubida } = req.body;
+    const usuarioActual = req.user; // Viene del token decodificado
 
-  let fields = [];
-  let params = [];
+    // 1. Consultamos la obligación para verificar existencia y permisos
+    db.get(`SELECT * FROM obligaciones WHERE id = ?`, [id], (err, obligacion) => {
+        if (err) {
+            return res.status(500).json({ error: 'Error al buscar la obligación' });
+        }
+        
+        // Si no existe, devolvemos 404
+        if (!obligacion) {
+            return res.status(404).json({ error: 'Obligación no encontrada' });
+        }
 
-  if (estado !== undefined) {
-    fields.push('estado = ?');
-    params.push(estado);
-  }
-  if (evidenciaSubida !== undefined) {
-    fields.push('evidenciaSubida = ?');
-    params.push(evidenciaSubida ? 1 : 0);
-  }
+        // 2. Validación 403: Si no es administrador y no es su responsable asignado
+        const esAdministrador = usuarioActual.rol === 'Administrador' || usuarioActual.rol === 'Administrador de Cumplimiento';
+        const esResponsable = obligacion.responsable === usuarioActual.nombre; // O usuarioActual.email dependiendo de lo que guardes
 
-  if (fields.length === 0) {
-    return res.status(400).json({ error: 'No se enviaron campos para actualizar' });
-  }
+        if (!esAdministrador && !esResponsable) {
+            return res.status(403).json({ error: 'No tienes permisos para modificar esta obligación.' });
+        }
 
-  params.push(id);
-  const query = `UPDATE obligaciones SET ${fields.join(', ')} WHERE id = ?`;
+        // 3. Procedemos con la actualización si pasa los filtros
+        let fields = [];
+        let params = [];
 
-  db.run(query, params, function(err) {
-    if (err) return res.status(500).json({ error: 'Error al actualizar obligación' });
-    
-    // Si no encontró el ID en la base de datos, devolvemos 404
-    if (this.changes === 0) {
-      return res.status(404).json({ error: 'Obligación no encontrada' });
-    }
+        if (estado !== undefined) {
+            fields.push('estado = ?');
+            params.push(estado);
+        }
+        if (evidenciaSubida !== undefined) {
+            fields.push('evidenciaSubida = ?');
+            params.push(evidenciaSubida ? 1 : 0);
+        }
 
-    res.json({ message: 'Obligación actualizada correctamente' });
-  });
+        if (fields.length === 0) {
+            return res.status(400).json({ error: 'No se enviaron campos para actualizar' });
+        }
+
+        params.push(id);
+        const query = `UPDATE obligaciones SET ${fields.join(', ')} WHERE id = ?`;
+
+        db.run(query, params, function(err) {
+            if (err) return res.status(500).json({ error: 'Error al actualizar obligación' });
+            return res.json({ message: 'Obligación actualizada correctamente', changes: this.changes });
+        });
+    });
 });
 
 app.listen(PORT, () => {
