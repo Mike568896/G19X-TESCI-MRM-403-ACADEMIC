@@ -29,6 +29,13 @@ cp .env.example .env
 (Asegúrate de configurar tus variables, incluyendo ADMIN_INIT_EMAIL y ADMIN_INIT_PASS para definir el usuario administrador inicial).
 
 4. **Ejecutar el proyecto:**
+
+Para poblar la base de datos con usuarios de prueba y obligaciones iniciales, ejecuta el siguiente comando en la carpeta del backend:
+
+```bash
+npm run seed
+```
+
 Abre dos terminales distintas en la raíz del repositorio. En la primera terminal corre el servidor
 Backend: 
 ```bash
@@ -46,12 +53,13 @@ Entrar a la aplicación usando el correo que definiste en ADMIN_INIT_EMAIL y la 
 
 ## Cuentas de Prueba y Seeding
 
-Para poblar la base de datos con usuarios de prueba y obligaciones iniciales, ejecuta el siguiente comando en la carpeta del backend:
+Una vez ejecutado el script de seed, puedes iniciar sesión con las siguientes credenciales precargadas:
 
-```bash
-cd plurione-backend
-npm run seed
-```
+| Correo |Contraseña | Rol | Responsable Asignado |
+| :--- | :--- | :--- | :--- |
+| **ana@plurione.com** | 123456 | Empleado | Ana Gomez |
+| **Carlos@plurione.com** | 123456 | Empleado | Carlos Ruiz |
+| **Romero@plurione.com** | 123456 | Administrador | Acceso Global |
 
 ## 📄 Documentación del Proyecto
 Para más detalles sobre el diseño y alcance del sistema, puedes consultar:
