@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "server": "node plurione-backend/server.js",
-    "seed": "node seed.js"
+    "seed": "node plurione-backend/seed.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
