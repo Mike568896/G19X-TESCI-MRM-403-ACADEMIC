@@ -11,15 +11,15 @@ Pluri Uno es una plataforma web integral diseñada para la gestión, seguimiento
 ## Requisitos e Instalación
 
 1. **Clonar el repositorio:**
-   ```bash
-   git clone https://github.com/Mike568896/G19X-TESCI-MRM-403-ACADEMIC.git
-   cd G19X-TESCI-MRM-403-ACADEMIC
-   ```
+```bash
+git clone https://github.com/Mike568896/G19X-TESCI-MRM-403-ACADEMIC.git
+cd G19X-TESCI-MRM-403-ACADEMIC
+```
 
 2. **Instalar Dependencias:**
-   ```bash 
-   npm install
-   ```
+```bash 
+npm install
+```
 
 3. **Configurar variables de entorno:**
 Copia el archivo de ejemplo para crear el .env:
@@ -30,20 +30,21 @@ cp .env.example .env
 
 4. **Ejecutar el proyecto:**
 
-Para poblar la base de datos con usuarios de prueba y obligaciones iniciales, ejecuta el siguiente comando en la carpeta del backend:
+Asegúrate de estar dentro de la carpeta del repositorio (`cd G19X-TESCI-MRM-403-ACADEMIC`) y abre **dos terminales distintas**:
+
+* **En la primera terminal, inicia el servidor Backend** (esto creará automáticamente el archivo de base de datos y sus tablas):
+
+```bash
+npm run server
+```
+
+En la segunda terminal, pobla la base de datos ejecutando el script de seeding (con las tablas ya creadas):
 
 ```bash
 npm run seed
 ```
 
-Abre dos terminales distintas en la raíz del repositorio. En la primera terminal corre el servidor
-Backend: 
-```bash
-npm run server
-```
-
-En la segunda terminal corre el cliente
-Frontend: 
+En esa misma segunda terminal, levanta el cliente Frontend: 
 ```bash
 npm run dev
 ```
