@@ -56,12 +56,31 @@ export default function App() {
   // ==========================================
   // NOTIFICACIONES EN VIVO
   // ==========================================
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notificaciones, setNotificaciones] = useState([
-    { id: 1, titulo: 'CFDI de Nómina Vencido', tiempo: 'Hace 10 min', tipo: 'urgente' },
-    { id: 2, titulo: 'Nueva evidencia cargada por Ana Gómez', tiempo: 'Hace 1 hora', tipo: 'exito' },
-    { id: 3, titulo: 'Próximo vencimiento: NOM-030 STPS', tiempo: 'Hace 3 horas', tipo: 'alerta' }
-  ]);
+  // Notificaciones sincronizadas en vivo con las obligaciones reales
+  const [notificaciones, setNotificaciones] = useState(() => {
+    // Si ya tienes obligaciones cargadas, calcula las vencidas aquí mismo
+    return []; 
+  });
+
+  // Efecto para actualizar la campanita en cuanto lleguen las obligaciones
+  useEffect(() => {
+    if (obligaciones && obligaciones.length > 0) {
+      const hoy = new Date().toISOString().split('T')[0];
+      const vencidas = obligaciones.filter(o => o.estado !== 'completada' && o.vencimiento && o.vencimiento < hoy);
+      
+      if (vencidas.length > 0) {
+        const alertasReales = vencidas.map((v, index) => ({
+          id: `vencida-${index}`,
+          titulo: `Vencida: ${v.titulo || v.marco_legal}`,
+          tipo: 'urgente',
+          tiempo: `Vence: ${v.vencimiento}`
+        }));
+        setNotificaciones(alertaReales);
+      } else {
+        setNotificaciones([{ id: 1, titulo: 'Todas las obligaciones al día', tipo: 'exito', tiempo: 'Ahora' }]);
+      }
+    }
+  }, [obligaciones]);
 
   // ==========================================
   // HELPER: EVALUAR SI UNA FECHA YA VENCIÓ
