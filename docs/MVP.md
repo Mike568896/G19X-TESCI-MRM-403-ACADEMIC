@@ -4,12 +4,12 @@
 
 | Funcionalidad | Estado actual | Observaciones |
 | :--- | :--- | :--- |
-| **Autenticación y Sesión (JWT)** | Implementado | Manejo de login y persistencia de token |
+| **Autenticación y Sesión (JWT)** | Implementado | Autenticación local mediante tokens JWT y persistencia de sesión por rol |
 | **Control de Roles (RBAC)** | Implementado | Roles de Administrador y Empleado |
 | **Gestión de Obligaciones (SQLite)** | Implementado | Persistencia en base de datos SQLite |
 | **Filtro por Responsable** | Implementado | RUTA `GET /api/obligaciones` con parámetro |
-| **Carga de Evidencias** | Simulado / Pendiente | Evidencias visuales en UI sin subida física Multer |
-| **Notificaciones por Correo** | Simulado / Pendiente | Alertas en pantalla sin servidor SMTP activo |
+| **Carga de Evidencias** | Simulado / Entorno Local | Interfaz de gestión visual integrada; almacenamiento en cliente/UI sin middleware de persistencia pesada (Multer/Azure) |
+| **Notificaciones por Correo** | Simulado / Local | Indicadores de alerta visual en tiempo real en la interfaz basados en el cálculo de fechas de vencimiento |
 
 ## 2. Criterios de Aceptación Comprobables
 

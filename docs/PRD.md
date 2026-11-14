@@ -10,5 +10,7 @@
 
 ## 2. Fuera de Alcance (Simulado / Pendiente)
 
-- **Almacenamiento físico de evidencias:** No se incluye la subida real de archivos al servidor mediante middleware como Multer.
-- **Notificaciones por Correo:** Las alertas operan de forma visual en la interfaz de usuario sin integración a un servidor SMTP activo.
+- **Autenticación Enterprise (Microsoft Entra ID / OAuth2):** Fuera del alcance del MVP académico; el sistema implementa un esquema robusto y autónomo de autenticación local basado en JSON Web Tokens (JWT) y SQLite.
+- **Servicios Cloud e Inteligencia Artificial (Azure OpenAI / Azure AI Search):** Las capacidades de análisis predictivo e integración con modelos cognitivos masivos descritas en la propuesta teórica inicial se abstraen en esta versión mediante motores lógicos internos basados en control de fechas y estados relacionales.
+- **Almacenamiento físico de evidencias:** No se incluye la subida real de archivos pesados al servidor mediante middleware como Multer o almacenamiento en la nube de Azure Blob.
+- **Notificaciones por Correo (SMTP):** Las alertas operan de forma visual y dinámica en la interfaz de usuario sin integración activa a un servidor de correo saliente SMTP.
