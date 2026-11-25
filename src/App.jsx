@@ -40,13 +40,18 @@ import {
 
 export default function App() {
   // ESTADO GLOBAL DE AUTENTICACIÓN Y SESIÓN
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [token, setToken] = useState(localStorage.getItem("token") || "");
-  const [activeTab, setActiveTab] = useState("calendario");
-  const [currentUser, setCurrentUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('token') || '');
+  const [currentUser, setCurrentUser] = useState(() => {
+  const savedUser = localStorage.getItem('usuario');
+    return savedUser && savedUser !== "undefined" ? JSON.parse(savedUser) : null;
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return !!localStorage.getItem('token') && !!localStorage.getItem('usuario');
+  });
+  const [activeTab, setActiveTab] = useState('calendario');
 
   // BUSCADOR GLOBAL EN VIVO
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   // NOTIFICACIONES EN VIVO
@@ -404,6 +409,14 @@ export default function App() {
     responsable: "",
   });
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+    setIsAuthenticated(false);
+    setToken('');
+    setCurrentUser(null);
+  };
+
   const handleAddObligacion = async (e) => {
     e.preventDefault();
     if (!newObligacion.titulo || !newObligacion.vencimiento) return;
@@ -593,6 +606,7 @@ export default function App() {
       }
 
       localStorage.setItem("token", data.token);
+      localStorage.setItem("usuario", JSON.stringify(data.user));
       setToken(data.token);
       setIsAuthenticated(true);
 
@@ -1026,15 +1040,15 @@ export default function App() {
               </div>
               <div className="overflow-hidden">
                 <h4 className="text-xs font-semibold text-white truncate">
-                  {currentUser.nombre}
+                  {currentUser?.nombre || 'Usuario'}
                 </h4>
                 <p className="text-[10px] text-slate-400 truncate">
-                  {currentUser.rol}
+                  {currentUser?.rol || 'Rol'}
                 </p>
               </div>
             </div>
             <button
-              onClick={() => setIsAuthenticated(false)}
+              onClick={handleLogout}
               className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
               title="Cerrar sesión"
             >
@@ -1193,7 +1207,7 @@ export default function App() {
                 <span>Cargar Evidencia</span>
               </button>
             ) : (
-              currentUser.rol === "Administrador" && (
+              currentUser?.rol === "Administrador" && (
                 <button
                   onClick={() => setShowNewModal(true)}
                   className="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-3.5 py-2 rounded-xl shadow-lg shadow-blue-600/20 flex items-center gap-2 cursor-pointer transition-colors"
