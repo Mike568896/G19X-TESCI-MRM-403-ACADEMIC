@@ -11,3 +11,9 @@
 * **¿Qué hice?:** Corrección del manejo de estado global con `localStorage` para el token y el objeto de usuario, asegurando que la sesión persista al presionar F5. Creación de la función `handleLogout` para limpiar correctamente las credenciales al cerrar sesión y evitar estados "fantasma".
 * **¿Qué me costó trabajo?:** Sincronizar el renderizado inicial de React con los datos del `localStorage` para evitar errores de tipo (`Cannot read properties of null`) al recargar.
 * **¿Qué le pedí a la IA?:** Asistencia para estructurar el encadenamiento opcional (`?.`) en las propiedades del usuario y el manejo seguro del almacenamiento local.
+
+## Bloque 3: Miércoles (Persistencia de perfil y control de evidencias)
+* **Hora de inicio:** 4:00 PM | **Hora de fin:** 7:30 PM
+* **Qué hice:** Implementación de persistencia local por correo para los datos editados en "Mi Cuenta", limpieza del botón de inicio de sesión de Microsoft y aplicación del filtro en el modal de "Cargar Evidencia" para evitar registros duplicados de obligaciones.
+* **Qué me costó trabajo:** Sincronizar el estado global del usuario con respaldos independientes en el `localStorage` para que sobrevivieran al cierre de sesión sin alterar el backend principal.
+* **Qué le pedí a la IA:** Soporte lógico para cruzar los estados del perfil con llaves dinámicas y el filtrado de opciones en el selector de evidencias.
