@@ -40,18 +40,31 @@ import {
 
 export default function App() {
   // ESTADO GLOBAL DE AUTENTICACIÓN Y SESIÓN
-  const [token, setToken] = useState(localStorage.getItem('token') || '');
+  const [token, setToken] = useState(localStorage.getItem("token") || "");
   const [currentUser, setCurrentUser] = useState(() => {
-  const savedUser = localStorage.getItem('usuario');
-    return savedUser && savedUser !== "undefined" ? JSON.parse(savedUser) : null;
+    const savedUser = localStorage.getItem("usuario");
+    return savedUser && savedUser !== "undefined"
+      ? JSON.parse(savedUser)
+      : null;
   });
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return !!localStorage.getItem('token') && !!localStorage.getItem('usuario');
+    return !!localStorage.getItem("token") && !!localStorage.getItem("usuario");
   });
-  const [activeTab, setActiveTab] = useState('calendario');
+  const [activeTab, setActiveTab] = useState("calendario");
+
+  // EDITOR DE DATOS
+  const [nombreEdit, setNombreEdit] = useState("");
+  const [telefonoEdit, setTelefonoEdit] = useState("");
+
+  useEffect(() => {
+    if (currentUser) {
+      setNombreEdit(currentUser.nombre || "");
+      setTelefonoEdit(currentUser.telefono || "+52 55 1234 5678");
+    }
+  }, [currentUser]);
 
   // BUSCADOR GLOBAL EN VIVO
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
 
   // NOTIFICACIONES EN VIVO
@@ -410,10 +423,10 @@ export default function App() {
   });
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('usuario');
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
     setIsAuthenticated(false);
-    setToken('');
+    setToken("");
     setCurrentUser(null);
   };
 
@@ -605,21 +618,29 @@ export default function App() {
         return;
       }
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("usuario", JSON.stringify(data.user));
-      setToken(data.token);
-      setIsAuthenticated(true);
+      const correoActual = data.user.email;
+      const respaldoLocal = JSON.parse(
+        localStorage.getItem(`perfil_${correoActual}`) || "null",
+      );
 
-      setCurrentUser({
-        nombre: data.user.nombre,
-        rol: data.user.rol || "Empleado",
-        departamento: data.user.departamento || "Sistemas y TI",
-        email: data.user.email,
-        telefono: "+52 55 1234 5678",
-        notifEmail: true,
-        notifUrgentes: true,
-        notifResumenSemanal: false,
-      });
+      const usuarioFinal = respaldoLocal
+        ? { ...data.user, ...respaldoLocal }
+        : {
+            nombre: data.user.nombre,
+            rol: data.user.rol || "Empleado",
+            departamento: data.user.departamento || "Sistemas y TI",
+            email: data.user.email,
+            telefono: data.user.telefono || "+52 55 1234 5678",
+            notifEmail: true,
+            notifUrgentes: true,
+            notifResumenSemanal: false,
+          };
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("usuario", JSON.stringify(usuarioFinal));
+      setToken(data.token);
+      setCurrentUser(usuarioFinal);
+      setIsAuthenticated(true);
 
       setIsAuthenticated(true);
     } catch (error) {
@@ -948,29 +969,7 @@ export default function App() {
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-slate-800"></div>
                 </div>
-                <div className="relative flex justify-center text-[10px] uppercase tracking-wider">
-                  <span className="bg-[#0b101d] px-3 text-slate-500 font-semibold">
-                    O TAMBIÉN
-                  </span>
-                </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setIsAuthenticated(true)}
-                className="w-full bg-[#121929] hover:bg-slate-800/60 text-slate-200 border border-slate-800 font-medium py-2 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 23 23">
-                  <path fill="#f35325" d="M1 1h10v10H1z" />
-                  <path fill="#81bc06" d="M12 1h10v10H1z" />
-                  <path fill="#05a6f0" d="M1 12h10v10H1z" />
-                  <path fill="#ffba08" d="M12 12h10v10H1z" />
-                </svg>
-                <span>Iniciar sesión con Microsoft</span>
-                <span className="bg-slate-800 text-[9px] text-slate-400 px-1.5 py-0.5 rounded ml-1">
-                  Ingresar ID
-                </span>
-              </button>
             </div>
           </div>
         </div>
@@ -1040,10 +1039,10 @@ export default function App() {
               </div>
               <div className="overflow-hidden">
                 <h4 className="text-xs font-semibold text-white truncate">
-                  {currentUser?.nombre || 'Usuario'}
+                  {currentUser?.nombre || "Usuario"}
                 </h4>
                 <p className="text-[10px] text-slate-400 truncate">
-                  {currentUser?.rol || 'Rol'}
+                  {currentUser?.rol || "Rol"}
                 </p>
               </div>
             </div>
@@ -2015,9 +2014,6 @@ export default function App() {
                     <p className="text-xs text-slate-400">
                       {currentUser.rol} · {currentUser.departamento}
                     </p>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 text-[10px] font-semibold mt-1">
-                      Microsoft Entra ID Conectado
-                    </span>
                   </div>
                 </div>
               </div>
@@ -2036,14 +2032,9 @@ export default function App() {
                       </label>
                       <input
                         type="text"
-                        value={currentUser.nombre}
-                        onChange={(e) =>
-                          setCurrentUser({
-                            ...currentUser,
-                            nombre: e.target.value,
-                          })
-                        }
-                        className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-blue-500"
+                        value={nombreEdit}
+                        onChange={(e) => setNombreEdit(e.target.value)}
+                        className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-white focus:outline-none"
                       />
                     </div>
 
@@ -2065,18 +2056,36 @@ export default function App() {
                       </label>
                       <input
                         type="text"
-                        value={currentUser.telefono}
-                        onChange={(e) =>
-                          setCurrentUser({
-                            ...currentUser,
-                            telefono: e.target.value,
-                          })
-                        }
-                        className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-white focus:outline-none focus:border-blue-500"
+                        value={telefonoEdit}
+                        onChange={(e) => setTelefonoEdit(e.target.value)}
+                        className="w-full bg-[#121929] border border-slate-800 rounded-xl px-3.5 py-2 text-white focus:outline-none"
                       />
                     </div>
+                    <button
+                      onClick={() => {
+                        const usuarioActualizado = {
+                          ...currentUser,
+                          nombre: nombreEdit,
+                          telefono: telefonoEdit,
+                        };
+                        setCurrentUser(usuarioActualizado);
+                        localStorage.setItem(
+                          "usuario",
+                          JSON.stringify(usuarioActualizado),
+                        );
 
-                    <button className="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-xl flex items-center gap-2 text-xs transition-colors cursor-pointer">
+                        localStorage.setItem(
+                          `perfil_${currentUser.email}`,
+                          JSON.stringify({
+                            nombre: nombreEdit,
+                            telefono: telefonoEdit,
+                          }),
+                        );
+
+                        alert("¡Cambios guardados correctamente en tu perfil!");
+                      }}
+                      className="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-xl flex items-center gap-2 cursor-pointer"
+                    >
                       <Save className="w-4 h-4" />
                       <span>Guardar Cambios</span>
                     </button>
