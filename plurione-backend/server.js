@@ -114,7 +114,7 @@ function initDb() {
       departamento TEXT NOT NULL,
       vencimiento TEXT NOT NULL,
       estado TEXT NOT NULL DEFAULT 'proxima',
-      responsable TEXT NOT NULL,
+      responsable_id INTEGER,
       evidenciaSubida INTEGER DEFAULT 0
     )`,
       (err) => {
@@ -150,11 +150,9 @@ const esAdmin = (req, res, next) => {
   ) {
     return next();
   }
-  return res
-    .status(403)
-    .json({
-      error: "Acceso denegado: Se requieren permisos de Administrador.",
-    });
+  return res.status(403).json({
+    error: "Acceso denegado: Se requieren permisos de Administrador.",
+  });
 };
 
 app.post("/api/register", async (req, res) => {
@@ -279,20 +277,35 @@ app.get("/api/usuarios", verificarToken, esAdmin, (req, res) => {
 });
 
 app.get("/api/obligaciones", verificarToken, (req, res) => {
-  let query = `SELECT * FROM obligaciones`;
+  console.log("--- PETICIÓN OBLIGACIONES ---");
+  console.log("Usuario decodificado del token (req.user):", req.user);
+
+  let query = `
+    SELECT obligaciones.*, usuarios.nombre AS responsable_nombre 
+    FROM obligaciones 
+    LEFT JOIN usuarios ON obligaciones.responsable_id = usuarios.id
+  `;
   let params = [];
 
   if (req.user.rol === "Empleado") {
-    query += ` WHERE responsable = ?`;
-    params.push(req.user.nombre);
+    console.log("Filtrando para empleado con ID:", req.user.id);
+    query += ` WHERE obligaciones.responsable_id = ?`;
+    params.push(req.user.id);
+  } else {
+    console.log("Usuario Admin: trayendo todas las obligaciones.");
   }
 
   db.all(query, params, (err, rows) => {
-    if (err)
+    if (err) {
+      console.error("Error SQL:", err);
       return res.status(500).json({ error: "Error al consultar obligaciones" });
+    }
+
+    console.log("Obligaciones encontradas en la BD:", rows.length);
 
     const obligaciones = rows.map((o) => ({
       ...o,
+      responsable: o.responsable_nombre || "Sin asignar",
       evidenciaSubida: Boolean(o.evidenciaSubida),
     }));
 
@@ -308,33 +321,33 @@ app.post("/api/obligaciones", verificarToken, (req, res) => {
     departamento,
     vencimiento,
     estado,
-    responsable,
+    responsable_id,
   } = req.body;
-  if (!titulo || !entidad || !departamento || !vencimiento || !responsable) {
-    return res.status(400).json({ error: "Faltan campos obligatorios" });
-  }
 
   const query = `
-    INSERT INTO obligaciones (titulo, entidad, ley, departamento, vencimiento, estado, responsable, evidenciaSubida)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+    INSERT INTO obligaciones (titulo, entidad, ley, departamento, vencimiento, estado, responsable_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `;
-  const params = [
-    titulo,
-    entidad,
-    ley || "",
-    departamento,
-    vencimiento,
-    estado || "proxima",
-    responsable,
-  ];
 
-  db.run(query, params, function (err) {
-    if (err)
-      return res.status(500).json({ error: "Error al insertar obligación" });
-    res
-      .status(201)
-      .json({ id: this.lastID, ...req.body, evidenciaSubida: false });
-  });
+  db.run(
+    query,
+    [
+      titulo,
+      entidad || "SAT",
+      ley || "Reglamento Interno",
+      departamento || "Asuntos legales y cumplimiento normativo",
+      vencimiento,
+      estado || "proxima",
+      Number(responsable_id) || 2,
+    ],
+    function (err) {
+      if (err) {
+        console.error("Error al insertar:", err.message);
+        return res.status(400).json({ error: err.message });
+      }
+      res.json({ id: this.lastID, message: "Obligación creada exitosamente" });
+    },
+  );
 });
 
 app.patch("/api/obligaciones/:id", verificarToken, (req, res) => {
@@ -354,7 +367,8 @@ app.patch("/api/obligaciones/:id", verificarToken, (req, res) => {
     const esAdministrador =
       usuarioActual.rol === "Administrador" ||
       usuarioActual.rol === "Administrador de Cumplimiento";
-    const esResponsable = obligacion.responsable === usuarioActual.nombre;
+    const esResponsable =
+      String(obligacion.responsable_id) === String(usuarioActual.id);
 
     if (!esAdministrador && !esResponsable) {
       return res

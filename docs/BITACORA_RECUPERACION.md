@@ -17,3 +17,12 @@
 * **Qué hice:** Implementación de persistencia local por correo para los datos editados en "Mi Cuenta", limpieza del botón de inicio de sesión de Microsoft y aplicación del filtro en el modal de "Cargar Evidencia" para evitar registros duplicados de obligaciones.
 * **Qué me costó trabajo:** Sincronizar el estado global del usuario con respaldos independientes en el `localStorage` para que sobrevivieran al cierre de sesión sin alterar el backend principal.
 * **Qué le pedí a la IA:** Soporte lógico para cruzar los estados del perfil con llaves dinámicas y el filtrado de opciones en el selector de evidencias.
+
+## Bloque 4: Jueves (Depuración de persistencia y asignación de obligaciones)
+* **Hora de inicio:** 6:30 PM | **Hora de fin:** 9:30 PM
+* **¿Qué hice?:** 
+  * Se corrigió el error `400 Bad Request` al registrar obligaciones estandarizando el payload y la validación en `server.js` para usar `responsable_id` en lugar del campo legacy de texto.
+  * Se recreó la estructura de la base de datos SQLite para soportar la columna `responsable_id INTEGER`.
+  * Se sustituyó la llamada a la función faltante `cargarObligaciones` en el frontend por un `fetch` directo en `src/App.jsx` que refresca el estado local con `setObligaciones(data)`.
+* **¿Qué me costó trabajo?:** Sincronizar la estructura de las tablas del servidor con las peticiones POST enviadas desde el modal de React y asegurar que la tabla de la interfaz se recargara correctamente al guardar un nuevo registro.
+* **¿Qué le pedí al asistente?:** Asistencia en vivo para interpretar los códigos de error en la consola (`SQLite error` y `400 Bad Request`), identificar el campo faltante en la tabla y estructurar el fragmento de código exacto para actualizar el estado en el archivo `App.jsx`.

@@ -360,7 +360,9 @@ export default function App() {
   const [personal, setPersonal] = useState([]);
 
   useEffect(() => {
-    if (!isAuthenticated || !token) return;
+    if (!isAuthenticated || !token || !currentUser) return;
+
+    if (currentUser.rol !== "Administrador") return;
 
     fetch("http://localhost:5000/api/usuarios", {
       headers: {
@@ -385,7 +387,7 @@ export default function App() {
         setPersonal(personalFormateado);
       })
       .catch((err) => console.error("Error al cargar personal:", err));
-  }, [isAuthenticated, token]);
+  }, [currentUser, token, isAuthenticated]);
 
   const [filterDepto, setFilterDepto] = useState("Todos");
 
@@ -432,48 +434,47 @@ export default function App() {
 
   const handleAddObligacion = async (e) => {
     e.preventDefault();
-    if (!newObligacion.titulo || !newObligacion.vencimiento) return;
 
-    const obligacionAEnviar = {
+    const payload = {
       titulo: newObligacion.titulo,
       entidad: newObligacion.entidad || "SAT",
-      ley: newObligacion.ley || "Reglamento Interno",
-      departamento:
-        newObligacion.departamento ||
-        "Asuntos legales y cumplimiento normativo",
+      ley: "Reglamento Interno",
+      departamento: "Asuntos legales y cumplimiento normativo",
       vencimiento: newObligacion.vencimiento,
-      responsable:
-        newObligacion.responsable || currentUser?.nombre || "Administrador",
       estado: "proxima",
-      evidenciaSubida: false,
+      responsable_id: Number(newObligacion.responsable) || 2,
     };
 
     try {
-      const response = await fetch("http://localhost:5000/api/obligaciones", {
+      const res = await fetch("http://localhost:5000/api/obligaciones", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(obligacionAEnviar),
+        body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error("Error al guardar obligación");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Error al guardar en BD");
+      }
 
-      const obligacionGuardada = await response.json();
-      setObligaciones((prev) => [...prev, obligacionGuardada]);
+      const resGet = await fetch("http://localhost:5000/api/obligaciones", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await resGet.json();
+      setObligaciones(data);
+      setShowNewModal(false);
       setNewObligacion({
         titulo: "",
         entidad: "SAT",
-        ley: "",
-        departamento: "Asuntos legales y cumplimiento normativo",
         vencimiento: "",
         responsable: "",
       });
-      setShowNewModal(false);
-    } catch (error) {
-      console.error("Error al agregar obligación:", error);
-      alert("No se pudo guardar la obligación en la base de datos.");
+    } catch (err) {
+      console.error("Detalle del error:", err);
+      alert(`No se pudo guardar: ${err.message}`);
     }
   };
 
@@ -626,6 +627,7 @@ export default function App() {
       const usuarioFinal = respaldoLocal
         ? { ...data.user, ...respaldoLocal }
         : {
+            id: data.user.id,
             nombre: data.user.nombre,
             rol: data.user.rol || "Empleado",
             departamento: data.user.departamento || "Sistemas y TI",
@@ -2455,7 +2457,9 @@ export default function App() {
                   >
                     <option value="">Selecciona un colaborador...</option>
                     {usuariosRegistrados.map((u) => (
-                      <option key={u.id} value={u.nombre}>
+                      <option key={u.id} value={u.id}>
+                        {" "}
+                        {/* <-- Cambias u.nombre por u.id */}
                         {u.nombre} ({u.departamento})
                       </option>
                     ))}
