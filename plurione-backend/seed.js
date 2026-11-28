@@ -14,8 +14,6 @@ const db = new sqlite.Database('./database.sqlite', async (err) => {
 async function runSeed() {
     try {
         const hashedPassword = await bcrypt.hash('123456', 10);
-
-        // 1. Usuarios de prueba (empleados y admin)
         const usuarios = [
             { nombre: 'Ana Gómez', email: 'ana@plurione.com', password: hashedPassword, departamento: 'Legal', rol: 'Empleado' },
             { nombre: 'Carlos Ruiz', email: 'carlos@plurione.com', password: hashedPassword, departamento: 'Finanzas', rol: 'Empleado' },
@@ -36,14 +34,13 @@ async function runSeed() {
             });
         }
 
-        // 2. Obligaciones de prueba distribuidas entre los empleados
         const obligaciones = [
-            { titulo: 'Revisión Fiscal Anual', entidad: 'SAT', ley: 'Ley del ISR', departamento: 'Finanzas', vencimiento: '2026-12-01', estado: 'proxima', responsable: 'Carlos Ruiz', evidenciaSubida: 0 },
-            { titulo: 'Auditoría Ambiental', entidad: 'PROFEPA', ley: 'Ley General del Equilibrio Ecológico', departamento: 'Legal', vencimiento: '2026-12-15', estado: 'proxima', responsable: 'Ana Gómez', evidenciaSubida: 0 },
-            { titulo: 'Declaración Trimestral IMSS', entidad: 'IMSS', ley: 'Ley del Seguro Social', departamento: 'Finanzas', vencimiento: '2026-11-20', estado: 'proxima', responsable: 'Carlos Ruiz', evidenciaSubida: 1 },
-            { titulo: 'Licencia de Funcionamiento', entidad: 'Municipio', ley: 'Ley Orgánica Municipal', departamento: 'Legal', vencimiento: '2027-01-10', estado: 'proxima', responsable: 'Ana Gómez', evidenciaSubida: 0 },
-            { titulo: 'Protección Civil y Visto Bueno', entidad: 'Protección Civil', ley: 'Ley de Gestión de Riesgos', departamento: 'Legal', vencimiento: '2026-12-30', estado: 'proxima', responsable: 'Ana Gómez', evidenciaSubida: 1 },
-            { titulo: 'Reporte de Contabilidad Electrónica', entidad: 'SAT', ley: 'Código Fiscal de la Federación', departamento: 'Finanzas', vencimiento: '2026-11-28', estado: 'proxima', responsable: 'Carlos Ruiz', evidenciaSubida: 0 }
+            { titulo: 'Revisión Fiscal Anual', entidad: 'SAT', ley: 'Ley del ISR', departamento: 'Finanzas', vencimiento: '2026-12-01', estado: 'proxima', responsable_id: 3, evidenciaSubida: 0 },
+            { titulo: 'Auditoría Ambiental', entidad: 'PROFEPA', ley: 'Ley General del Equilibrio Ecológico', departamento: 'Legal', vencimiento: '2026-12-15', estado: 'proxima', responsable_id: 2, evidenciaSubida: 0 },
+            { titulo: 'Declaración Trimestral IMSS', entidad: 'IMSS', ley: 'Ley del Seguro Social', departamento: 'Finanzas', vencimiento: '2026-11-20', estado: 'proxima', responsable_id: 3, evidenciaSubida: 1 },
+            { titulo: 'Licencia de Funcionamiento', entidad: 'Municipio', ley: 'Ley Orgánica Municipal', departamento: 'Legal', vencimiento: '2027-01-10', estado: 'proxima', responsable_id: 2, evidenciaSubida: 0 },
+            { titulo: 'Protección Civil y Visto Bueno', entidad: 'Protección Civil', ley: 'Ley de Gestión de Riesgos', departamento: 'Legal', vencimiento: '2026-12-30', estado: 'proxima', responsable_id: 2, evidenciaSubida: 1 },
+            { titulo: 'Reporte de Contabilidad Electrónica', entidad: 'SAT', ley: 'Código Fiscal de la Federación', departamento: 'Finanzas', vencimiento: '2026-11-28', estado: 'proxima', responsable_id: 3, evidenciaSubida: 0 }
         ];
 
         setTimeout(() => {
@@ -51,8 +48,8 @@ async function runSeed() {
                 db.get(`SELECT * FROM obligaciones WHERE titulo = ?`, [o.titulo], (err, row) => {
                     if (!row) {
                         db.run(
-                            `INSERT INTO obligaciones (titulo, entidad, ley, departamento, vencimiento, estado, responsable, evidenciaSubida) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                            [o.titulo, o.entidad, o.ley, o.departamento, o.vencimiento, o.estado, o.responsable, o.evidenciaSubida],
+                            `INSERT INTO obligaciones (titulo, entidad, ley, departamento, vencimiento, estado, responsable_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+[o.titulo, o.entidad, o.ley, o.departamento, o.vencimiento, o.estado, o.responsable_id],
                             (err) => { if (!err) console.log(`Obligación creada: ${o.titulo}`); }
                         );
                     } else {

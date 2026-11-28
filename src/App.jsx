@@ -983,7 +983,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-100 flex font-sans overflow-hidden">
       {/* SIDEBAR */}
-      <aside className="w-64 bg-[#0d1322] border-r border-slate-800 flex flex-col justify-between shrink-0 hidden md:flex">
+      <aside className="w-64 bg-[#0d1322] border-r border-slate-800 flex flex-col justify-between shrink-0">
         <div>
           <div className="p-6 flex items-center gap-3 border-b border-slate-800/80">
             <div className="bg-blue-600 text-white font-black text-lg px-3 py-1 rounded-xl shadow-lg shadow-blue-600/30">

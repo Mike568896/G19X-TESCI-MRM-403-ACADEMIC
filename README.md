@@ -58,9 +58,9 @@ Una vez ejecutado el script de seed, puedes iniciar sesión con las siguientes c
 
 | Correo |Contraseña | Rol | Responsable Asignado |
 | :--- | :--- | :--- | :--- |
-| **ana@plurione.com** | 123456 | Empleado | Ana Gomez |
-| **Carlos@plurione.com** | 123456 | Empleado | Carlos Ruiz |
-| **Romero@plurione.com** | 123456 | Administrador | Acceso Global |
+| **ana@plurione.com** | 123456 | Empleado | Ana Gómez |
+| **carlos@plurione.com** | 123456 | Empleado | Carlos Ruiz |
+| **m.romero@plurione.com** | 123456 | Administrador | Miguel Admin |
 
 ## 📄 Documentación del Proyecto
 Para más detalles sobre el diseño y alcance del sistema, puedes consultar:

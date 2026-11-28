@@ -26,3 +26,13 @@
   * Se sustituyó la llamada a la función faltante `cargarObligaciones` en el frontend por un `fetch` directo en `src/App.jsx` que refresca el estado local con `setObligaciones(data)`.
 * **¿Qué me costó trabajo?:** Sincronizar la estructura de las tablas del servidor con las peticiones POST enviadas desde el modal de React y asegurar que la tabla de la interfaz se recargara correctamente al guardar un nuevo registro.
 * **¿Qué le pedí al asistente?:** Asistencia en vivo para interpretar los códigos de error en la consola (`SQLite error` y `400 Bad Request`), identificar el campo faltante en la tabla y estructurar el fragmento de código exacto para actualizar el estado en el archivo `App.jsx`.
+
+## Blocker 5: Viernes (Ajustes finales de dictamen, README y cuentas)
+* **Hora de inicio:** 5:00 PM | **Hora de fin:** 9:00 PM
+* **¿Qué hice?:** 
+  * Se corrigió el diseño responsivo en pantallas móviles de `390 px` ajustando las clases de Tailwind (`hidden md:flex`) en el componente `<aside>`.
+  * Se actualizó el título de la pestaña en `index.html` a "Pluri Uno - Centro de Cumplimiento" y se limpiaron restos de plantillas previas.
+  * Se sincronizó el archivo `README.md` con las cuentas de prueba reales del script de siembra (`seed.js`), asegurando el acceso con las 3 credenciales en minúsculas (`ana@plurione.com`, `carlos@plurione.com`, `m.romero@plurione.com`).
+  * Se refactorizó el script `seed.js` y el servidor para soportar la asignación por ID numérico (`responsable_id INTEGER`), validando la integridad referencial en SQLite.
+* **¿Qué me costó trabajo:** Verificar que los correos y las contraseñas del `README.md` coincidieran al 100% con los hashes y consultas generados en el `seed.js`.
+* **¿Qué le pedí al asistente?:** Validación de la estructura del script de siembra con claves foráneas numéricas y redacción transparente del alcance técnico para los archivos del PRD y MVP.
