@@ -314,6 +314,10 @@ app.get("/api/obligaciones", verificarToken, (req, res) => {
 });
 
 app.post("/api/obligaciones", verificarToken, (req, res) => {
+  if (req.user.rol !== "Administrador") {
+    return res.status(403).json({ error: "Acceso denegado. Se requiere rol de Administrador." });
+  }
+
   const {
     titulo,
     entidad,

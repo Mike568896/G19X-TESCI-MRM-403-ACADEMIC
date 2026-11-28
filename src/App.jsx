@@ -653,6 +653,11 @@ export default function App() {
     }
   };
 
+  const obtenerIniciales = (nombre) => {
+  if (!nombre) return "US";
+  return nombre.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+};
+
   const navItems = [
     { id: "inicio", label: "Inicio / Resumen", icon: LayoutDashboard },
     {
@@ -1037,7 +1042,7 @@ export default function App() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-xs">
-                MR
+                {currentUser?.nombre ? currentUser.nombre.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase() : "US"}
               </div>
               <div className="overflow-hidden">
                 <h4 className="text-xs font-semibold text-white truncate">
@@ -2007,7 +2012,7 @@ export default function App() {
               <div className="bg-[#0d1322] border border-slate-800 rounded-2xl p-6">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 text-xl font-bold">
-                    MR
+                    {currentUser?.nombre ? currentUser.nombre.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase() : "US"}
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-white">
