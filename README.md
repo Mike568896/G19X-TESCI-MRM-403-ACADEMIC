@@ -62,7 +62,7 @@ Una vez ejecutado el script de seed, puedes iniciar sesión con las siguientes c
 | **carlos@plurione.com** | 123456 | Empleado | Carlos Ruiz |
 | **m.romero@plurione.com** | 123456 | Administrador | Miguel Admin |
 
-## 📄 Documentación del Proyecto
+## Documentación del Proyecto
 Para más detalles sobre el diseño y alcance del sistema, puedes consultar:
 - [Documento de Requisitos (PRD)](docs/PRD.md)
 - [Producto Mínimo Viable (MVP)](docs/MVP.md)
